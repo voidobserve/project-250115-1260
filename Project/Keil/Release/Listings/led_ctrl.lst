@@ -1,4 +1,4 @@
-C51 COMPILER V9.60.7.0   LED_CTRL                                                          01/15/2025 13:53:59 PAGE 1   
+C51 COMPILER V9.60.7.0   LED_CTRL                                                          01/15/2025 14:03:29 PAGE 1   
 
 
 C51 COMPILER V9.60.7.0, COMPILATION OF MODULE LED_CTRL
@@ -32,9 +32,9 @@ line level    source
   21          #define L_PWR_T (1 * 60 * 60)      // 降功率
   22          #define L_TEMP_PWR_T (1 * 30 * 60) // 过温半小时降功率
   23          // #define LEVLE_PER 184              // 每个档位对应的AD值 （20级挡位调节）
-  24          #define LEVLE_PER 92 // 每个档位对应的AD值 (40级挡位调节)
-  25          // #define LEVLE_PER 23 // 每个档位对应的AD值 (160级挡位调节)
-  26          #define ADJUST_STEP 40 // 调节级数，例如 20级、40级、120级
+  24          // #define LEVLE_PER 92 // 每个档位对应的AD值 (40级挡位调节)
+  25          #define LEVLE_PER 23 // 每个档位对应的AD值 (160级挡位调节)
+  26          #define ADJUST_STEP 160 // 调节级数，例如 20级、40级、160级
   27          #define DEAD_ZONE 5    // adc死区范围± 5
   28          
   29          bit ex_temp_en; // 过温降功率标志位
@@ -62,7 +62,7 @@ line level    source
   48          
   49          typedef struct
   50          {
-C51 COMPILER V9.60.7.0   LED_CTRL                                                          01/15/2025 13:53:59 PAGE 2   
+C51 COMPILER V9.60.7.0   LED_CTRL                                                          01/15/2025 14:03:29 PAGE 2   
 
   51              u8 en;
   52              u8 act; // 动作，执行降功率动作：1
@@ -126,7 +126,7 @@ line level    source
  110                  {MAX_DUTY, 4}, {_60_DUTY, 2}, {_30_DUTY, 3}, {_60_DUTY, 2}, {MAX_DUTY, 1}, {0, 255} // 42321
  111          };
  112          
-C51 COMPILER V9.60.7.0   LED_CTRL                                                          01/15/2025 13:53:59 PAGE 3   
+C51 COMPILER V9.60.7.0   LED_CTRL                                                          01/15/2025 14:03:29 PAGE 3   
 
  113          t_ctrl_list_t *p_list;
  114          
@@ -190,7 +190,7 @@ line level    source
                       }
                       else if (8 * LEVLE_PER < adjust_val && adjust_val < LEVLE_PER * 9)
                       {
-C51 COMPILER V9.60.7.0   LED_CTRL                                                          01/15/2025 13:53:59 PAGE 4   
+C51 COMPILER V9.60.7.0   LED_CTRL                                                          01/15/2025 14:03:29 PAGE 4   
 
                           ajust_duty = 4560;
                       }
@@ -254,7 +254,7 @@ line level    source
  233   3                  last_level = cur_level;
  234   3                  return;
  235   3              }
-C51 COMPILER V9.60.7.0   LED_CTRL                                                          01/15/2025 13:53:59 PAGE 5   
+C51 COMPILER V9.60.7.0   LED_CTRL                                                          01/15/2025 14:03:29 PAGE 5   
 
  236   2      
  237   2              if (cur_level >= ADJUST_STEP) // 最大挡位
@@ -318,7 +318,7 @@ line level    source
                                               if(ntc_val<_75_TEMP&&ex_temp_state==1)//半小时处理一次 AD值越小 温度越高
                                               {
                                                       if(pwm_in_duty>(ajust_duty*ex_temp_cnt/10))
-C51 COMPILER V9.60.7.0   LED_CTRL                                                          01/15/2025 13:53:59 PAGE 6   
+C51 COMPILER V9.60.7.0   LED_CTRL                                                          01/15/2025 14:03:29 PAGE 6   
 
                                                       {
                                                               max_duty=ajust_duty*ex_temp_cnt/10;//第一次降到90%，之后80% 70% 
@@ -382,7 +382,7 @@ line level    source
  354   3              }
  355   2              if (ntc_val > _3_1V) // 温度降下来后 不干预最大值 并且计数置0 下次过温再从9
              -0%开始
-C51 COMPILER V9.60.7.0   LED_CTRL                                                          01/15/2025 13:53:59 PAGE 7   
+C51 COMPILER V9.60.7.0   LED_CTRL                                                          01/15/2025 14:03:29 PAGE 7   
 
  356   2              {
  357   3                  ex_temp_cnt = 0;
@@ -446,7 +446,7 @@ line level    source
  414   1          //    if(c_duty != 0)
  415   1          {
  416   2      
-C51 COMPILER V9.60.7.0   LED_CTRL                                                          01/15/2025 13:53:59 PAGE 8   
+C51 COMPILER V9.60.7.0   LED_CTRL                                                          01/15/2025 14:03:29 PAGE 8   
 
  417   2              duty_tmp = MAX_DUTY - c_duty;
  418   2              // c_duty = 10;
@@ -510,7 +510,7 @@ line level    source
  476          
  477          // 计算三合一的占空比,储存pwm_in_duty
  478          void cal_pwm_in_duty(void)
-C51 COMPILER V9.60.7.0   LED_CTRL                                                          01/15/2025 13:53:59 PAGE 9   
+C51 COMPILER V9.60.7.0   LED_CTRL                                                          01/15/2025 14:03:29 PAGE 9   
 
  479          {
  480   1          u8 i;
@@ -574,7 +574,7 @@ line level    source
  538   2              {
  539   3                  led_state = LED_ADJ_P;
  540   3              }
-C51 COMPILER V9.60.7.0   LED_CTRL                                                          01/15/2025 13:53:59 PAGE 10  
+C51 COMPILER V9.60.7.0   LED_CTRL                                                          01/15/2025 14:03:29 PAGE 10  
 
  541   2              if ((pwm_in_duty + 10) < c_duty)
  542   2              {
@@ -638,7 +638,7 @@ line level    source
  600   4                      c_duty = pwm_in_duty;
  601   4                      led_state = LED_NULL;
  602   4                  }
-C51 COMPILER V9.60.7.0   LED_CTRL                                                          01/15/2025 13:53:59 PAGE 11  
+C51 COMPILER V9.60.7.0   LED_CTRL                                                          01/15/2025 14:03:29 PAGE 11  
 
  603   3                  set_pwm_duty();
  604   3              }
@@ -702,7 +702,7 @@ line level    source
  661          
  662          void led_sub(void)
  663          {
-C51 COMPILER V9.60.7.0   LED_CTRL                                                          01/15/2025 13:53:59 PAGE 12  
+C51 COMPILER V9.60.7.0   LED_CTRL                                                          01/15/2025 14:03:29 PAGE 12  
 
  664   1          if (led_state != LED_ADJ_S)
  665   1              return;
@@ -766,7 +766,7 @@ line level    source
  723   1          P0_MD0 &= ~(GPIO_P02_MODE_SEL(0x3));
  724   1          P0_PU |= (GPIO_P02_PULL_UP(0x1));
  725   1          // 时空有/无 R11
-C51 COMPILER V9.60.7.0   LED_CTRL                                                          01/15/2025 13:53:59 PAGE 13  
+C51 COMPILER V9.60.7.0   LED_CTRL                                                          01/15/2025 14:03:29 PAGE 13  
 
  726   1          P0_MD0 &= ~(GPIO_P03_MODE_SEL(0x3));
  727   1          P0_PU |= (GPIO_P03_PULL_UP(0x1));
@@ -830,7 +830,7 @@ line level    source
  785   1          // 时控模式1：100%4H 50%8H 0%
  786   1          // 时控模式2：100%5H 70%3H 50%4H 0%
  787   1          // 时控模式3：100%4H 70%4H 50%4H 0%
-C51 COMPILER V9.60.7.0   LED_CTRL                                                          01/15/2025 13:53:59 PAGE 14  
+C51 COMPILER V9.60.7.0   LED_CTRL                                                          01/15/2025 14:03:29 PAGE 14  
 
  788   1          // 时控模式4：100%4H 60%2H 30%3H 60%2H 100%1H 0%
  789   1      
@@ -894,7 +894,7 @@ line level    source
  847   4                      else
  848   4                      {
  849   5                          max_duty = ajust_duty / 100 * 75;
-C51 COMPILER V9.60.7.0   LED_CTRL                                                          01/15/2025 13:53:59 PAGE 15  
+C51 COMPILER V9.60.7.0   LED_CTRL                                                          01/15/2025 14:03:29 PAGE 15  
 
  850   5                          l_pwr.act = 1; // 降功率状态
  851   5                          l_pwr.en = 0;  // 处理完成，使能降功率
@@ -958,7 +958,7 @@ line level    source
  908   3                  if (_3_1.en == 1)
  909   3                  {
  910   4                      pwm_in_duty = pwm_in_duty_xuwei;
-C51 COMPILER V9.60.7.0   LED_CTRL                                                          01/15/2025 13:53:59 PAGE 16  
+C51 COMPILER V9.60.7.0   LED_CTRL                                                          01/15/2025 14:03:29 PAGE 16  
 
  911   4                  }
  912   3                  else
@@ -1022,7 +1022,7 @@ line level    source
  970   2              {
  971   3                  //                  t_ctrl.list = 4;
  972   3                  //        p_list = &t_ctrl_lis_4;
-C51 COMPILER V9.60.7.0   LED_CTRL                                                          01/15/2025 13:53:59 PAGE 17  
+C51 COMPILER V9.60.7.0   LED_CTRL                                                          01/15/2025 14:03:29 PAGE 17  
 
  973   3                  t_ctrl.t++;
  974   3                  if (t_ctrl.t >= (p_list[t_ctrl.level].t * 60 * 60)) // 改成10s
@@ -1086,7 +1086,7 @@ line level    source
 1032   2              //                                      t_ctrl.level=0;
 1033   2              //                              }
 1034   2              // is_pwr_dow=0;
-C51 COMPILER V9.60.7.0   LED_CTRL                                                          01/15/2025 13:53:59 PAGE 18  
+C51 COMPILER V9.60.7.0   LED_CTRL                                                          01/15/2025 14:03:29 PAGE 18  
 
 1035   2          }
 1036   1          // printf("pwm_in_duty= %d  t= %d  ajust_duty=%d  max_duty=%d adjust_val=%d pwm_save[0]=%d\r\n", (int)
@@ -1150,7 +1150,7 @@ line level    source
 1092   1          t_ctrl.en = 0;
 1093   1          t_ctrl.level = 0;
 1094   1      
-C51 COMPILER V9.60.7.0   LED_CTRL                                                          01/15/2025 13:53:59 PAGE 19  
+C51 COMPILER V9.60.7.0   LED_CTRL                                                          01/15/2025 14:03:29 PAGE 19  
 
 1095   1          l_pwr.en = 0;
 1096   1          l_pwr.act = 0;

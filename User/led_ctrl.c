@@ -21,9 +21,9 @@ extern u16 adc1_val;
 #define L_PWR_T (1 * 60 * 60)      // 降功率
 #define L_TEMP_PWR_T (1 * 30 * 60) // 过温半小时降功率
 // #define LEVLE_PER 184              // 每个档位对应的AD值 （20级挡位调节）
-#define LEVLE_PER 92 // 每个档位对应的AD值 (40级挡位调节)
-// #define LEVLE_PER 23 // 每个档位对应的AD值 (160级挡位调节)
-#define ADJUST_STEP 40 // 调节级数，例如 20级、40级、120级
+// #define LEVLE_PER 92 // 每个档位对应的AD值 (40级挡位调节)
+#define LEVLE_PER 23 // 每个档位对应的AD值 (160级挡位调节)
+#define ADJUST_STEP 160 // 调节级数，例如 20级、40级、160级
 #define DEAD_ZONE 5    // adc死区范围± 5
 
 bit ex_temp_en; // 过温降功率标志位
