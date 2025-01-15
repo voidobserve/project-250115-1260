@@ -1,0 +1,12 @@
+".\Release\Objects\STARTUP.obj",
+".\Release\Objects\system.obj",
+".\Release\Objects\main.obj",
+".\Release\Objects\debug.obj",
+".\Release\Objects\my_timer.obj",
+".\Release\Objects\timer_cap.obj",
+".\Release\Objects\led_ctrl.obj",
+".\Release\Objects\LVD.obj",
+".\Release\Objects\adc.obj" 
+TO ".\Release\Objects\Demo" 
+PRINT(".\Release\Listings\Demo.m51") CODE( 0X0000-0X3EEF )
+XDATA( 0X6000-0X66FF )
