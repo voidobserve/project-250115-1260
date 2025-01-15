@@ -1,0 +1,160 @@
+C51 COMPILER V9.60.7.0   MAIN                                                              11/20/2024 14:32:27 PAGE 1   
+
+
+C51 COMPILER V9.60.7.0, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN .\Release\Objects\main.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE ..\..\User\main.c LARGE OPTIMIZE(8,SPEED) BROWSE INTVECTOR(0X000C) INCDI
+                    -R(..\..\Libraries\Include;..\..\User) INTERVAL(3) DEBUG OBJECTEXTEND PRINT(.\Release\Listings\main.lst) OBJECT(.\Release
+                    -\Objects\main.obj)
+
+line level    source
+
+   1           
+   2          
+   3          #include "include.h"
+   4          #include <stdio.h>
+   5          #include "main.h"
+   6          #include <math.h>
+   7          /** @addtogroup Template_Project
+   8            * @{
+   9            */ 
+  10             
+  11          /* Private typedef -----------------------------------------------------------*/
+  12          /* Private define ------------------------------------------------------------*/
+  13          /* Private macro -------------------------------------------------------------*/
+  14          /* Private variables ---------------------------------------------------------*/
+  15          
+  16          LED_S led_state;
+  17          /* Private function prototypes -----------------------------------------------*/
+  18          /* Private functions ---------------------------------------------------------*/
+  19          
+  20          /*********************************
+  21          |--------------------------------|
+  22          | 使用%d打印的数值不对时，请注意 |
+  23          |--------------------------------|
+  24          | 格式 |     含义     | 针对类型 |
+  25          |------|--------------|----------|
+  26          | %bd  | 单个字节变量 | char     |
+  27          | % d  | 两个字节变量 | int      |
+  28          | %ld  | 四个字节变量 | long int |
+  29          |--------------------------------|
+  30          **********************************/
+  31          // 重写puchar()函数,用于标准printf()函数 (注意:使用printf()函数占用1k左右的code空间
+             -)
+  32          char putchar(char c)
+  33          {
+  34   1          debug_putchar(c);
+  35   1      
+  36   1          return c;
+  37   1      }
+  38          
+  39          
+  40           
+  41          /**
+  42            * @brief  Main program.
+  43            * @param  None
+  44            * @retval None
+  45            */
+  46          extern void timer4_cap_init(void);
+  47          extern void timer0_init();
+  48          extern void get_duty(void);
+  49          extern void pwm_init(void);
+  50          extern void option_fun(void); 
+  51          extern void init_lvd_4V(void);
+  52          extern void init_lvd_3v(void);
+C51 COMPILER V9.60.7.0   MAIN                                                              11/20/2024 14:32:27 PAGE 2   
+
+  53          
+  54          extern void lvd_handler(void);
+  55          extern void adc_init();
+  56          extern void adc_val();
+  57          extern u16 ntc_val;
+  58          extern u16 adjust_val;
+  59          extern u16 ajust_duty;
+  60          extern u16 adc0_val;
+  61          extern u16 adc1_val;
+  62          extern void adjust_pwm();
+  63          extern u16 max_duty;
+  64          extern u32 pwm_in_duty;
+  65          extern bit dly_pwr_on ;
+  66          extern u8 simple_over;
+  67          extern u16 max_duty;
+  68          void main(void) 
+  69          {
+  70   1              
+  71   1              system_init();
+  72   1        
+  73   1      
+  74   1                      
+  75   1      //  P1_MD1   &= ~GPIO_P15_MODE_SEL(0x03);
+  76   1      //  P1_MD1   |=  GPIO_P15_MODE_SEL(0x01);
+  77   1      //      P1_PU |= GPIO_P15_PULL_UP(1);
+  78   1      //      P15 = 1;
+  79   1      
+  80   1      //  P1_MD1   &= ~GPIO_P16_MODE_SEL(0x03);
+  81   1      //  P1_MD1   |=  GPIO_P16_MODE_SEL(0x01);
+  82   1      //      P1_PU |= GPIO_P16_PULL_UP(1);
+  83   1      //  P16 = 1;
+  84   1      //              while(1) 
+  85   1      //    {
+  86   1      //      WDT_KEY = WDT_KEY_VAL(0xAA);        // 喂狗并清除 wdt_pending
+  87   1      //              }
+  88   1      
+  89   1      //      delay_ms(5);
+  90   1              #if 1
+  91   1          // 看门狗默认打开, 复位时间2s 
+  92   1          //    WDT_KEY = WDT_KEY_VAL(0xDD);               //  关闭看门狗 (如需配置看门狗请查看�
+             -�WDT\WDT_Reset”示例)
+  93   1          led_state = LED_PWR_ON;
+  94   1          
+  95   1          delay_ms(10);
+  96   1          // 初始化打印
+  97   1          debug_init();
+  98   1          user_printf("TX8C126x_SDK main start\n");
+  99   1          timer4_cap_init();
+ 100   1              
+ 101   1          __SetIRQnIP(TMR4_IRQn, TMR4_IQn_CFG);  
+ 102   1                      __SetIRQnIP(STMR0_IRQn, STMR0_IQn_CFG);  
+ 103   1                      
+ 104   1          timer0_init();
+ 105   1          pwm_init();
+ 106   1          adc_init();
+ 107   1                      adc_val();//初始化时运行一次，用于标志位判断
+ 108   1          option_fun(); 
+ 109   1                       printf("adc0_val = %d  adc1_val = %d \r\n ", adc0_val,adc1_val);                 
+ 110   1          init_lvd_3v(); 
+ 111   1          while(1) 
+ 112   1          {
+ 113   2            WDT_KEY = WDT_KEY_VAL(0xAA);        // 喂狗并清除 wdt_pending
+C51 COMPILER V9.60.7.0   MAIN                                                              11/20/2024 14:32:27 PAGE 3   
+
+ 114   2            get_duty(); 
+ 115   2            lvd_handler();
+ 116   2                              //adc_val();//adc值
+ 117   2                              adjust_pwm();//电位器值
+ 118   2                              //dly_pwr_on =1;
+ 119   2                                      
+ 120   2          }
+ 121   1                      #endif
+ 122   1      }
+ 123          
+ 124          /**
+ 125            * @}
+ 126            */
+ 127          
+ 128          /*************************** (C) COPYRIGHT 2021 HUGE-IC ***** END OF FILE *****/
+ 129          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    132    ----
+   CONSTANT SIZE    =     58    ----
+   XDATA SIZE       =      1       1
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

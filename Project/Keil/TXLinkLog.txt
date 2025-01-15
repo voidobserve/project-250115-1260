@@ -1,0 +1,65 @@
+[01-15 11:56:52]Log start
+[01-15 11:56:52]Serial init start!
+[01-15 11:56:52]Serial close ok!
+[01-15 11:56:52]Serial init start!
+[01-15 11:56:52]Download driver ok!
+[01-15 11:56:52]uart_txm8c1200_set_driver:0x0
+[01-15 11:56:52]user uart set driver ok!
+[01-15 11:56:52]TXLink ready ok!
+[01-15 11:56:53]TXLink init ok!
+[01-15 11:56:53]Serial close ok!
+[01-15 11:56:53]load_debug_init_api chip id:1260
+[01-15 11:56:53]sys_info_init! 
+[01-15 11:56:53]AG_Init: 0x30a
+[01-15 11:56:53]AG_Init: 0x30b
+[01-15 11:56:53]AG_Init: 0x30f
+[01-15 11:56:53]AG_Init: 0x310
+[01-15 11:56:53]AG_Init: 0x311
+[01-15 11:56:53]AG_Init: 0x312
+[01-15 11:56:53]AG_Init: 0x100
+[01-15 11:56:53]InitMem: 0x0
+[01-15 11:56:53]Serial init start!
+[01-15 11:56:53]chip_init_api
+[01-15 11:56:53]TXLink chip init ok!
+[01-15 11:56:53]AG_Init: 0x201
+[01-15 11:56:53]AG_Init: 0x202
+[01-15 11:56:53]AG_Init: 0x203
+[01-15 11:56:53]AG_Init: 0x204
+[01-15 11:56:53]AG_Init: 0x205
+[01-15 11:56:53]AG_Init: 0x206
+[01-15 11:56:53]AG_Init: 0x207
+[01-15 11:56:53]AG_Init: 0x313
+[01-15 11:56:53]Serial init start!
+[01-15 11:56:53]uart_txm8c1200_check_dev_id:
+[01-15 11:56:53]uart_txm8c1200_check_crc_bin check failed 2:
+[01-15 11:56:53]uart_txm8c1200_check_dev_id ok:
+[01-15 11:56:53]EraseFlash: 0x0
+[01-15 11:56:53]TXLink chip erase ok!
+[01-15 11:56:53]AG_Init: 0x314
+[01-15 11:56:53]FlashLoad: 0x0
+[01-15 11:56:53]InitProgress: Loading...
+[01-15 11:56:53]WriteToFlash: 0xff000000
+[01-15 11:56:53]WriteToFlash: 0xff00001e
+[01-15 11:56:53]WriteToFlash: 0xff00002a
+[01-15 11:56:54]WriteToFlash: 0xff00082a
+[01-15 11:56:54]WriteToFlash: 0xff00102a
+[01-15 11:56:55]WriteToFlash: 0xff00182a
+[01-15 11:56:55]WriteToFlash: 0xff00202a
+[01-15 11:56:56]WriteToFlash: 0xff00282a
+[01-15 11:56:56]InitProgress: Verifying...
+[01-15 11:56:56]VerifyFlash nAdr: 0xff000000
+[01-15 11:56:56]VerifyFlash nAdr: 0xff00001e
+[01-15 11:56:56]VerifyFlash nAdr: 0xff00002a
+[01-15 11:56:56]VerifyFlash nAdr: 0xff00082a
+[01-15 11:56:56]VerifyFlash nAdr: 0xff00102a
+[01-15 11:56:56]VerifyFlash nAdr: 0xff00182a
+[01-15 11:56:56]VerifyFlash nAdr: 0xff00202a
+[01-15 11:56:56]VerifyFlash nAdr: 0xff00282a
+[01-15 11:56:56]chip_reset_api
+[01-15 11:56:56]Serial close ok!
+[01-15 11:56:56]AG_Init: 0x40c
+[01-15 11:56:56]CloseAllDlg: 0x0
+[01-15 11:56:56]StopTarget: 0x0
+[01-15 11:56:56]FreeCache: 0x0
+[01-15 11:56:56]StopTarget: 0x0
+[01-15 11:56:56]FreeCache: 0x0

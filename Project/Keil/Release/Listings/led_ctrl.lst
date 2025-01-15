@@ -1,0 +1,1176 @@
+C51 COMPILER V9.60.7.0   LED_CTRL                                                          01/15/2025 11:54:04 PAGE 1   
+
+
+C51 COMPILER V9.60.7.0, COMPILATION OF MODULE LED_CTRL
+OBJECT MODULE PLACED IN .\Release\Objects\led_ctrl.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE ..\..\User\led_ctrl.c LARGE OPTIMIZE(8,SPEED) BROWSE INTVECTOR(0X000C) I
+                    -NCDIR(..\..\Libraries\Include;..\..\User) INTERVAL(3) DEBUG OBJECTEXTEND PRINT(.\Release\Listings\led_ctrl.lst) OBJECT(.
+                    -\Release\Objects\led_ctrl.obj)
+
+line level    source
+
+   1          #include "include.h"
+   2          #include "main.h"
+   3          #include <math.h>
+   4          #include <stdio.h>
+   5          extern void pwm_in_handler(void);
+   6          extern u16 ntc_val;
+   7          extern u16 adc0_val;
+   8          extern u16 adc1_val;
+   9          
+  10          // 输出占空比100%时，对应的占空比参数
+  11          #define MAX_DUTY (6000)
+  12          #define PER_DUTY (10) //
+  13          #define _75_DUTY 4500 // 75%亮度
+  14          #define _70_DUTY 4200
+  15          #define _60_DUTY 3600
+  16          #define _50_DUTY 3000
+  17          #define _30_DUTY 1800
+  18          
+  19          #define _75_TEMP 2420              // 75摄氏度对应的ADC值
+  20          #define _3_1V 3000                 // 3.4V对应的ADC值
+  21          #define L_PWR_T (1 * 60 * 60)      // 降功率
+  22          #define L_TEMP_PWR_T (1 * 30 * 60) // 过温半小时降功率
+  23          // #define LEVLE_PER 184              // 每个档位对应的AD值 （20级挡位调节）
+  24          #define LEVLE_PER 92 // 每个档位对应的AD值 (40级挡位调节)
+  25          #define DEAD_ZONE 5  // adc死区范围± 5
+  26          
+  27          bit ex_temp_en; // 过温降功率标志位
+  28          // #define L_PWR_T     (1*10)
+  29          
+  30          /* LIN 改的地方有：
+  31                           增加adc.c文件
+  32                           加入了电位器值的判断                void adjust_pwm()
+  33                           加入了过温降功率函数                ex_temp_adjust_timer()
+  34                                           LIN 改 加入了电位器 将时控数值改动  void t_ctrl_timer_handl
+             -er(void)
+  35                                           加入了ntc和电位器的调节标志位判断   option_fun(void)
+  36                                           一小时降功率中加入了电位器值转换    l_pwr_timer_handler(v
+             -oid)
+  37                                           缓启动无三合一时将最大亮度改为电位器的值   void led_p
+             -wr_on(void)
+  38          */
+  39          typedef struct
+  40          {
+  41              u32 t;    // 计时器
+  42              u8 level; // 时空列表执行的哪一个时间段
+  43              u8 list;  // 时控列表，5个列表
+  44              u8 en;    // 使能
+  45          } t_ctrl_t;   // 时控结构体
+  46          
+  47          typedef struct
+  48          {
+  49              u8 en;
+  50              u8 act; // 动作，执行降功率动作：1
+C51 COMPILER V9.60.7.0   LED_CTRL                                                          01/15/2025 11:54:04 PAGE 2   
+
+  51              u32 t;  // 秒
+  52          
+  53          } l_pwr_t; // 降功率结构体
+  54          
+  55          typedef struct
+  56          {
+  57              u8 en;
+  58          } _3_1_t; // 三合一结构体
+  59          
+  60          u8 cap_10ms_cnt; // 10ms获取一次捕获占空比
+  61          u8 pwr_on_cnt;
+  62          u16 c_duty = 0;      // 当前设置的占空比
+  63          u32 pwm_in_duty = 0; // 三合一PWM输入的占空比
+  64          u32 pwm_in_duty_xuwei = 0;
+  65          u32 ex_pwm_in_duty = 0;
+  66          u16 ex_max_duty = 0;
+  67          u16 max_duty = 6000; // 可调的最大占空比
+  68          t_ctrl_t t_ctrl;
+  69          l_pwr_t l_pwr;
+  70          _3_1_t _3_1;
+  71          bit dly_pwr_on = 0;
+  72          u8 dly_pwr_on_cnt = 0;
+  73          bit is_pwr_down = 0; // 1：正在降功率，调用缓升缓降逻辑
+  74          bit adjust_en;
+  75          // 时控模式0：100%6H 50%6H 0%
+  76          // 时控模式1：100%4H 50%8H 0%
+  77          // 时控模式2：100%5H 70%3H 50%4H 0%
+  78          // 时控模式3：100%4H 70%4H 50%4H 0%
+  79          // 时控模式4：100%4H 60%2H 30%3H 60%2H 100%1H 0%
+  80          void flag_init();
+  81          typedef struct
+  82          {
+  83              u16 b; // 当前亮度
+  84              u8 t;  // 当前亮度保持时间,255时控结束
+  85          } t_ctrl_list_t;
+  86          
+  87          t_ctrl_list_t t_ctrl_lis_0[3] =
+  88              {
+  89                  {MAX_DUTY, 6}, {_50_DUTY, 6}, {0, 255} // 6 6
+  90          };
+  91          
+  92          t_ctrl_list_t code t_ctrl_lis_1[3] =
+  93              {
+  94                  {MAX_DUTY, 4}, {_50_DUTY, 8}, {0, 255}};
+  95          
+  96          t_ctrl_list_t code t_ctrl_lis_2[4] =
+  97              {
+  98                  {MAX_DUTY, 5}, {_70_DUTY, 3}, {_50_DUTY, 4}, {0, 255} // 534
+  99          };
+ 100          
+ 101          t_ctrl_list_t code t_ctrl_lis_3[4] =
+ 102              {
+ 103                  {MAX_DUTY, 4}, {_70_DUTY, 4}, {_50_DUTY, 4}, {0, 255} // 444
+ 104          };
+ 105          
+ 106          t_ctrl_list_t code t_ctrl_lis_4[6] =
+ 107              {
+ 108                  {MAX_DUTY, 4}, {_60_DUTY, 2}, {_30_DUTY, 3}, {_60_DUTY, 2}, {MAX_DUTY, 1}, {0, 255} // 42321
+ 109          };
+ 110          
+ 111          t_ctrl_list_t *p_list;
+ 112          
+C51 COMPILER V9.60.7.0   LED_CTRL                                                          01/15/2025 11:54:04 PAGE 3   
+
+ 113          extern u16 cap0_val;
+ 114          extern u16 cap1_val;
+ 115          
+ 116          extern void led_pwr_on(void);
+ 117          extern void cmp_duty(void);
+ 118          extern void led_plus(void);
+ 119          extern void led_sub(void);
+ 120          extern void cal_pwm_in_duty(void);
+ 121          
+ 122          extern u16 adjust_val; // 电位器的ADC值 0~3686---->60%~100%---->3600~6000
+ 123          u16 ajust_duty;
+ 124          // 20档电位器调节pwm   60%-62%-64%-66%- 68%-70%-72%-74%-76%6-7896-80%--82. 5%-85%-87.5%-90%-92%-94%-
+             -96%-98%-100%
+ 125          // 修改为40档电位器调节 pwm
+ 126          void adjust_pwm()
+ 127          {
+ 128   1          u16 level = adjust_val / LEVLE_PER; // 计算当前挡位
+ 129   1      
+ 130   1          // 计算出当前挡位对应的ad中间值
+ 131   1          u16 level_center = level * LEVLE_PER + LEVLE_PER / 2;
+ 132   1      
+ 133   1          if (adjust_en == 1)
+ 134   1          {
+ 135   2      #if 0 // 20级挡位调节：
+                      if (adjust_val > 3680) // 4.5V对应的AD值
+                      {
+                          ajust_duty = 6000;
+                      }
+                      if (0 < adjust_val && adjust_val < LEVLE_PER)
+                      {
+                          ajust_duty = 3600;
+                      }
+                      else if (LEVLE_PER < adjust_val && adjust_val < LEVLE_PER * 2)
+                      {
+                          ajust_duty = 3720;
+                      }
+                      else if (2 * LEVLE_PER < adjust_val && adjust_val < LEVLE_PER * 3)
+                      {
+                          ajust_duty = 3840;
+                      }
+                      else if (3 * LEVLE_PER < adjust_val && adjust_val < LEVLE_PER * 4)
+                      {
+                          ajust_duty = 3960;
+                      }
+                      else if (4 * LEVLE_PER < adjust_val && adjust_val < LEVLE_PER * 5)
+                      {
+                          ajust_duty = 4080;
+                      }
+                      else if (5 * LEVLE_PER < adjust_val && adjust_val < LEVLE_PER * 6)
+                      {
+                          ajust_duty = 4200;
+                      }
+                      else if (6 * LEVLE_PER < adjust_val && adjust_val < LEVLE_PER * 7)
+                      {
+                          ajust_duty = 4320;
+                      }
+                      else if (7 * LEVLE_PER < adjust_val && adjust_val < LEVLE_PER * 8)
+                      {
+                          ajust_duty = 4440;
+                      }
+                      else if (8 * LEVLE_PER < adjust_val && adjust_val < LEVLE_PER * 9)
+                      {
+C51 COMPILER V9.60.7.0   LED_CTRL                                                          01/15/2025 11:54:04 PAGE 4   
+
+                          ajust_duty = 4560;
+                      }
+                      else if (9 * LEVLE_PER < adjust_val && adjust_val < LEVLE_PER * 10)
+                      {
+                          ajust_duty = 4680;
+                      }
+                      else if (10 * LEVLE_PER < adjust_val && adjust_val < LEVLE_PER * 11)
+                      {
+                          ajust_duty = 4800;
+                      }
+                      else if (11 * LEVLE_PER < adjust_val && adjust_val < LEVLE_PER * 12)
+                      {
+                          ajust_duty = 4950;
+                      }
+                      else if (12 * LEVLE_PER < adjust_val && adjust_val < LEVLE_PER * 13)
+                      {
+                          ajust_duty = 5100;
+                      }
+                      else if (13 * LEVLE_PER < adjust_val && adjust_val < LEVLE_PER * 14)
+                      {
+                          ajust_duty = 5250;
+                      }
+                      else if (14 * LEVLE_PER < adjust_val && adjust_val < LEVLE_PER * 15)
+                      {
+                          ajust_duty = 5400;
+                      }
+                      else if (15 * LEVLE_PER < adjust_val && adjust_val < LEVLE_PER * 16)
+                      {
+                          ajust_duty = 5520;
+                      }
+                      else if (16 * LEVLE_PER < adjust_val && adjust_val < LEVLE_PER * 17)
+                      {
+                          ajust_duty = 5640;
+                      }
+                      else if (17 * LEVLE_PER < adjust_val && adjust_val < LEVLE_PER * 18)
+                      {
+                          ajust_duty = 5760;
+                      }
+                      else if (18 * LEVLE_PER < adjust_val && adjust_val < LEVLE_PER * 19)
+                      {
+                          ajust_duty = 5880;
+                      }
+                      else if (19 * LEVLE_PER < adjust_val && adjust_val < LEVLE_PER * 20)
+                      {
+                          ajust_duty = 6000;
+                      }
+                      // ajust_duty=5760;
+              #endif
+ 222   2      
+ 223   2              if (adjust_val > 3680) // 超出了4.5V对应的AD值
+ 224   2              {
+ 225   3                  ajust_duty = 6000;
+ 226   3                  return;
+ 227   3              }
+ 228   2      
+ 229   2              if (0 == level) // 最小挡位
+ 230   2              {
+ 231   3                  ajust_duty = 3600;
+ 232   3                  return;
+ 233   3              }
+ 234   2      
+ 235   2              if (level >= 40) // 最大挡位
+C51 COMPILER V9.60.7.0   LED_CTRL                                                          01/15/2025 11:54:04 PAGE 5   
+
+ 236   2              {
+ 237   3                  ajust_duty = 6000;
+ 238   3                  return;
+ 239   3              }
+ 240   2      
+ 241   2              // if ((adjust_val > (level_center - DEAD_ZONE)) &&
+ 242   2              //     (adjust_val < (level_center + DEAD_ZONE)))
+ 243   2              // {
+ 244   2              //     // 如果采集到的ad值仍在死区范围内,不改变占空比
+ 245   2              //      // 每次都会进来这里，因为level_center就是根据adjust_val计算得出的
+ 246   2              //     return;
+ 247   2              // }
+ 248   2      
+ 249   2              ajust_duty = 3600 + level * ((6000 - 3600) / 40);
+ 250   2          }
+ 251   1      }
+ 252          
+ 253          //
+ 254          u16 ex_temp_t = 0;
+ 255          u8 ex_temp_cnt = 0; // 过温降功率处理次数，第一次降到90% 第二次80%-----
+ 256          u8 ex_temp_state = 1;
+ 257          
+ 258          #if 0 // 歧义 过温降功率是否降为当前值的90%
+              
+              void ex_temp_adjust_timer()//过温降功率定时处理
+              {
+                      if(ex_temp_en==1)//判断过温降功率标志
+                      {
+                              if(adjust_en==0)//判断电位器
+                                      {
+                                              if(ntc_val<_75_TEMP&&ex_temp_state==1)//半小时处理一次 AD值越小 温度越高
+                                              {
+                                                      if(pwm_in_duty>(6000*ex_temp_cnt/10))
+                                                      {
+                                                              max_duty=6000*ex_temp_cnt/10;//第一次降到90%，之后每次将10% 10%对应600
+                                                              ex_temp_state=0;//处理完成 半小时后再开启
+                                                      }
+                                                      else
+                                                      {
+                                                              ex_temp_cnt--;
+                                                              ex_temp_state=1;
+                                                      }
+                                              }
+                                              ex_temp_t++;
+                                              if(ex_temp_t==L_TEMP_PWR_T)
+                                              {
+                                                      ex_temp_t=0;//半小时计数清零
+                                                      ex_temp_state=1;
+                                                      ex_temp_cnt--;//每半小时计数一次
+                                              }
+                                              if(ntc_val>_75_TEMP)//判断温度是否下降到75以下
+                                              {
+                                                      ex_temp_cnt=9;
+                                              }
+                                      }
+                                      if(adjust_en==1)//判断电位器
+                                      {
+                                              if(ntc_val<_75_TEMP&&ex_temp_state==1)//半小时处理一次 AD值越小 温度越高
+                                              {
+                                                      if(pwm_in_duty>(ajust_duty*ex_temp_cnt/10))
+                                                      {
+                                                              max_duty=ajust_duty*ex_temp_cnt/10;//第一次降到90%，之后80% 70% 
+C51 COMPILER V9.60.7.0   LED_CTRL                                                          01/15/2025 11:54:04 PAGE 6   
+
+                                                              ex_temp_state=0;//处理完成 半小时后再开启
+                                                      }
+                                                      else
+                                                      {
+                                                              ex_temp_cnt--;
+                                                              ex_temp_state=1;
+                                                      }
+                                              }
+                                              ex_temp_t++;
+                                              if(ex_temp_t==L_TEMP_PWR_T)
+                                              {
+                                                      ex_temp_t=0;//半小时计数清零
+                                                      ex_temp_state=1;
+                                                      ex_temp_cnt--;//每半小时计数一次
+                                              }
+                                              if(ntc_val>_75_TEMP)//判断温度是否下降到75以下
+                                              {
+                                                      ex_temp_cnt=9;
+                                              }
+                                      }
+                      }
+              }
+              #endif
+ 321          u16 pwm_save[10] = 0;
+ 322          u16 ex_duty = 0;
+ 323          bit extemp_flag = 0;
+ 324          bit extemp_tctrl_flag = 0;
+ 325          void ex_temp_adjust_timer() // 过温降功率 定时判断 每秒执行一次
+ 326          {
+ 327   1          // printf("ntc_val=%d  ex_temp_cnt=%d   ex_temp_t=%d  \r\n",(int)pwm_in_duty,(int)c_duty,(int)ex_temp_
+             -t);
+ 328   1          if (ex_temp_en == 1 && t_ctrl.en == 0)
+ 329   1          {
+ 330   2              // ntc_val=adjust_val;
+ 331   2              if (extemp_tctrl_flag == 1)
+ 332   2              {
+ 333   3                  pwm_save[0] = max_duty;
+ 334   3                  ex_temp_cnt = 0;
+ 335   3                  extemp_tctrl_flag = 0;
+ 336   3              }
+ 337   2              if (ntc_val < _3_1V && ex_temp_state == 1) // 半小时处理一次 AD值越小 温度越高
+ 338   2              {
+ 339   3                  pwm_save[ex_temp_cnt] = pwm_in_duty; // 用数组存住第一个值
+ 340   3      
+ 341   3                  ex_duty = pwm_save[0] - (pwm_save[0] / 10 * (ex_temp_cnt + 1)); // 第一次降到90%，之后
+             -每次将10%
+ 342   3                  ex_temp_state = 0;                                              // 处理完成 半小时后�
+             -�开启
+ 343   3                  ex_temp_t = 0;
+ 344   3      
+ 345   3                  max_duty = ex_duty;
+ 346   3                  ex_temp_cnt++;
+ 347   3                  if (ex_temp_cnt > 9)
+ 348   3                  {
+ 349   4                      max_duty = 0;
+ 350   4                  }
+ 351   3                  extemp_flag = 1;
+ 352   3              }
+ 353   2              if (ntc_val > _3_1V) // 温度降下来后 不干预最大值 并且计数置0 下次过温再从9
+             -0%开始
+ 354   2              {
+ 355   3                  ex_temp_cnt = 0;
+C51 COMPILER V9.60.7.0   LED_CTRL                                                          01/15/2025 11:54:04 PAGE 7   
+
+ 356   3                  if (extemp_flag == 1 && ex_temp_state == 1)
+ 357   3                  {
+ 358   4                      if (extemp_tctrl_flag == 0)
+ 359   4                      {
+ 360   5                          if (adjust_en == 1)
+ 361   5                          {
+ 362   6                              if (_3_1.en == 1)
+ 363   6                                  max_duty = pwm_in_duty_xuwei;
+ 364   6                              else
+ 365   6                                  max_duty = ajust_duty;
+ 366   6                          }
+ 367   5                          if (adjust_en == 0)
+ 368   5                          {
+ 369   6                              if (_3_1.en == 1)
+ 370   6                                  max_duty = ex_pwm_in_duty;
+ 371   6                              else
+ 372   6                                  max_duty = pwm_save[0];
+ 373   6                          }
+ 374   5                          if (P00 == 0)
+ 375   5                          {
+ 376   6                              if (max_duty > ex_max_duty)
+ 377   6                              {
+ 378   7                                  max_duty = ex_max_duty;
+ 379   7                              }
+ 380   6                          }
+ 381   5                      }
+ 382   4                      if (extemp_tctrl_flag == 1)
+ 383   4                      {
+ 384   5                          extemp_tctrl_flag = 0;
+ 385   5                          extemp_flag = 0;
+ 386   5                          ex_temp_cnt = 0;
+ 387   5                          return;
+ 388   5                      }
+ 389   4                  }
+ 390   3              }
+ 391   2              ex_temp_t++;
+ 392   2              if (ex_temp_t == L_TEMP_PWR_T)
+ 393   2              {
+ 394   3                  ex_temp_t = 0; // 半小时计数清零
+ 395   3                  ex_temp_state = 1;
+ 396   3                  // extemp_flag=0;
+ 397   3              }
+ 398   2      
+ 399   2              //    if(extemp_tctrl_flag==1)
+ 400   2              //                      {
+ 401   2              //                              pwm_save[0]=max_duty;
+ 402   2              //                      }
+ 403   2          }
+ 404   1          is_pwr_down = 1;
+ 405   1          // printf("ex_temp_state=%d\r\n",(int)ex_temp_state);
+ 406   1          // printf("pwm_in_duty= %d  t= %d  ajust_duty=%d  c_duty=%d adjust_val=%d pwm_save[0]=%d\r\n", (int)pw
+             -m_in_duty,(int)t_ctrl.t,(int)ajust_duty,(int)c_duty,(int)adjust_val,(int)pwm_save[0]);
+ 407   1      }
+ 408          
+ 409          void set_pwm_duty(void)
+ 410          {
+ 411   1          u16 duty_tmp;
+ 412   1          //    if(c_duty != 0)
+ 413   1          {
+ 414   2      
+ 415   2              duty_tmp = MAX_DUTY - c_duty;
+ 416   2              // c_duty = 10;
+C51 COMPILER V9.60.7.0   LED_CTRL                                                          01/15/2025 11:54:04 PAGE 8   
+
+ 417   2              STMR0_CMPAH = STMR_CMPA_VAL_H(((c_duty) >> 8) & 0xFF); // 比较值
+ 418   2              STMR0_CMPAL = STMR_CMPA_VAL_L(((c_duty) >> 0) & 0xFF); // 比较值
+ 419   2              STMR_LOADEN |= STMR_0_LOAD_EN(0x1);                    // 自动装载使能
+ 420   2          }
+ 421   1          //    else
+ 422   1          {
+ 423   2          }
+ 424   1      
+ 425   1          // TMR2_PWMH  = TMR_PWM_VAL_H((duty_tmp >> 8) & 0xFF);                      // 占空比设置值
+ 426   1          // TMR2_PWML  = TMR_PWM_VAL_L((duty_tmp >> 0) & 0xFF);
+ 427   1      }
+ 428          
+ 429          u8 adjust_ms = 0;
+ 430          void cap_timer(void)
+ 431          {
+ 432   1          if (cap_10ms_cnt < 10)
+ 433   1          {
+ 434   2              cap_10ms_cnt++;
+ 435   2          }
+ 436   1          pwr_on_cnt++;
+ 437   1          adjust_ms++;
+ 438   1      }
+ 439          
+ 440          // 放在while,没10ms获取一次PWM占空比
+ 441          // 连续获取5次，占空比稳定才输出
+ 442          u16 duty_buff[5];
+ 443          u8 duty_cnt = 0;
+ 444          // 上电采样5次完成标志为
+ 445          u8 simple_over = 0;
+ 446          // 放主循环
+ 447          void get_duty(void)
+ 448          {
+ 449   1          // 10ms获取一次
+ 450   1          if (cap_10ms_cnt >= 10)
+ 451   1          {
+ 452   2              cap_10ms_cnt = 0;
+ 453   2              if (_3_1.en == 1) // 三合一功能开启才调光
+ 454   2              {
+ 455   3                  // 非三合一不会更新pwm_in_duty
+ 456   3                  cal_pwm_in_duty();
+ 457   3              }
+ 458   2              // 处理降功率，时控激活，限制可调的占空比范围
+ 459   2              // 延时开机模式，强制pwm_in_duty=0
+ 460   2      
+ 461   2              pwm_in_handler();
+ 462   2              cmp_duty();
+ 463   2          }
+ 464   1      
+ 465   1          if (adjust_ms == 3)
+ 466   1          {
+ 467   2              adjust_ms = 0;
+ 468   2              led_plus();
+ 469   2              led_sub();
+ 470   2          }
+ 471   1      
+ 472   1          led_pwr_on();
+ 473   1      }
+ 474          
+ 475          // 计算三合一的占空比,储存pwm_in_duty
+ 476          void cal_pwm_in_duty(void)
+ 477          {
+ 478   1          u8 i;
+C51 COMPILER V9.60.7.0   LED_CTRL                                                          01/15/2025 11:54:04 PAGE 9   
+
+ 479   1          if (cap1_val == 0 && cap0_val == 0)
+ 480   1          {
+ 481   2              if (P14 == 0)
+ 482   2              {
+ 483   3                  // 占空比 0
+ 484   3                  pwm_in_duty = 0;
+ 485   3              }
+ 486   2              if (P14 == 1)
+ 487   2              {
+ 488   3                  pwm_in_duty = 6000;
+ 489   3              }
+ 490   2          }
+ 491   1          else
+ 492   1          {
+ 493   2              pwm_in_duty = (u32)MAX_DUTY * (cap1_val + 1);
+ 494   2              pwm_in_duty = pwm_in_duty / (cap0_val + 1);
+ 495   2          }
+ 496   1      
+ 497   1          cap1_val = 0;
+ 498   1          cap0_val = 0;
+ 499   1          duty_buff[duty_cnt] = pwm_in_duty;
+ 500   1          duty_cnt++;
+ 501   1          if (duty_cnt == 5)
+ 502   1          {
+ 503   2              simple_over = 1;
+ 504   2              duty_cnt = 0;
+ 505   2          }
+ 506   1          if (simple_over == 1)
+ 507   1          {
+ 508   2              pwm_in_duty = 0;
+ 509   2              for (i = 0; i < 5; i++)
+ 510   2              {
+ 511   3                  pwm_in_duty += duty_buff[i];
+ 512   3              }
+ 513   2              // 求平均
+ 514   2              pwm_in_duty = pwm_in_duty / 5;
+ 515   2          }
+ 516   1          // printf("3_1_pwm_in_duty= %d    c_duty=%d\r\n",(int)pwm_in_duty,(int)c_duty);
+ 517   1          // pwm_in_duty=5000;
+ 518   1      
+ 519   1          if (adjust_en == 1)
+ 520   1          {
+ 521   2              pwm_in_duty_xuwei = pwm_in_duty * ajust_duty / 6000;
+ 522   2              pwm_in_duty = pwm_in_duty_xuwei;
+ 523   2          }
+ 524   1          ex_pwm_in_duty = pwm_in_duty;
+ 525   1      }
+ 526          
+ 527          // 对比当前的duty是否发生变化
+ 528          void cmp_duty(void)
+ 529          {
+ 530   1          if (led_state == LED_PWR_ON)
+ 531   1              return;
+ 532   1      
+ 533   1          if (pwm_in_duty > 10)
+ 534   1          {
+ 535   2              if ((pwm_in_duty - 10) > c_duty)
+ 536   2              {
+ 537   3                  led_state = LED_ADJ_P;
+ 538   3              }
+ 539   2              if ((pwm_in_duty + 10) < c_duty)
+ 540   2              {
+C51 COMPILER V9.60.7.0   LED_CTRL                                                          01/15/2025 11:54:04 PAGE 10  
+
+ 541   3                  led_state = LED_ADJ_S;
+ 542   3              }
+ 543   2          }
+ 544   1          else
+ 545   1          {
+ 546   2              if (pwm_in_duty > c_duty)
+ 547   2              {
+ 548   3                  led_state = LED_ADJ_P;
+ 549   3              }
+ 550   2              if (pwm_in_duty < c_duty)
+ 551   2              {
+ 552   3                  led_state = LED_ADJ_S;
+ 553   3              }
+ 554   2          }
+ 555   1      }
+ 556          
+ 557          // 上电led缓慢启动
+ 558          // 每10ms执行一次，c_duty每次+30
+ 559          float gamma = 1;
+ 560          void debug_putchar(u8 uart_data);
+ 561          
+ 562          // float step = 90;
+ 563          float step = 70;
+ 564          
+ 565          float mi;  // 幂
+ 566          float rus; // 10的幂次方
+ 567          float r_ms = 0;
+ 568          u16 rus_duty; // 放大60倍
+ 569          
+ 570          // 1ms调用一次     LIN 改 加入电位器判断
+ 571          void led_pwr_on(void)
+ 572          {
+ 573   1          if (led_state == LED_PWR_ON && simple_over == 1)
+ 574   1          {
+ 575   2              // 没有电位器时
+ 576   2              // 没有三合一功能，上电默认最大占空比
+ 577   2              //  有三合一功能，按采用的占空比调光
+ 578   2              if (adjust_en == 0)
+ 579   2              {
+ 580   3                  if (_3_1.en == 0)
+ 581   3                  {
+ 582   4                      pwm_in_duty = max_duty;
+ 583   4                  }
+ 584   3                  r_ms = step / 12;
+ 585   3                  if (r_ms < 1)
+ 586   3                      r_ms = 10;
+ 587   3                  if (pwr_on_cnt < r_ms)
+ 588   3                      return; // 时间未到不调整
+ 589   3                  pwr_on_cnt = 0;
+ 590   3                  if (c_duty < pwm_in_duty)
+ 591   3                  {
+ 592   4                      mi = (step - 1) / (253 / 3) - 1;
+ 593   4                      step += 0.5;
+ 594   4                      c_duty = pow(5, mi) * 60;
+ 595   4                  }
+ 596   3                  if (c_duty >= pwm_in_duty)
+ 597   3                  {
+ 598   4                      c_duty = pwm_in_duty;
+ 599   4                      led_state = LED_NULL;
+ 600   4                  }
+ 601   3                  set_pwm_duty();
+ 602   3              }
+C51 COMPILER V9.60.7.0   LED_CTRL                                                          01/15/2025 11:54:04 PAGE 11  
+
+ 603   2              if (adjust_en == 1) // 有没有三合一功能，上电都默认电位器的最大占空比
+ 604   2              {
+ 605   3                  if (_3_1.en == 0)
+ 606   3                  {
+ 607   4                      pwm_in_duty = ajust_duty;
+ 608   4                  }
+ 609   3                  if (_3_1.en == 1)
+ 610   3                  {
+ 611   4                      pwm_in_duty = pwm_in_duty_xuwei;
+ 612   4                  }
+ 613   3                  {
+ 614   4                      r_ms = step / 12;
+ 615   4                      if (r_ms < 1)
+ 616   4                          r_ms = 10;
+ 617   4                      if (pwr_on_cnt < r_ms)
+ 618   4                          return; // 时间未到不调整
+ 619   4                      pwr_on_cnt = 0;
+ 620   4                      if (c_duty < pwm_in_duty)
+ 621   4                      {
+ 622   5                          mi = (step - 1) / (253 / 3) - 1;
+ 623   5                          step += 0.5;
+ 624   5                          c_duty = pow(5, mi) * 60;
+ 625   5                      }
+ 626   4                      if (c_duty >= pwm_in_duty)
+ 627   4                      {
+ 628   5                          c_duty = pwm_in_duty;
+ 629   5                          led_state = LED_NULL;
+ 630   5                      }
+ 631   4                      set_pwm_duty();
+ 632   4                  }
+ 633   3              }
+ 634   2          }
+ 635   1          // printf("pwm_in_duty= %d   t= %d    t_ctrl.level=%d    c_duty=%d\r\n", (int)pwm_in_duty,(int)t_ctrl.
+             -t,(int)ajust_duty,(int)c_duty);
+ 636   1      }
+ 637          
+ 638          void led_plus(void)
+ 639          {
+ 640   1          if (led_state != LED_ADJ_P)
+ 641   1              return;
+ 642   1          if (c_duty < pwm_in_duty)
+ 643   1          {
+ 644   2              if (is_pwr_down) // 缓慢升降
+ 645   2                  c_duty += 1;
+ 646   2              else
+ 647   2                  c_duty += 10;
+ 648   2          }
+ 649   1      
+ 650   1          if (c_duty >= pwm_in_duty)
+ 651   1          {
+ 652   2              c_duty = pwm_in_duty;
+ 653   2              led_state = LED_NULL;
+ 654   2              gamma = c_duty;
+ 655   2              is_pwr_down = 0; // 完成缓慢升降
+ 656   2          }
+ 657   1          set_pwm_duty();
+ 658   1      }
+ 659          
+ 660          void led_sub(void)
+ 661          {
+ 662   1          if (led_state != LED_ADJ_S)
+ 663   1              return;
+C51 COMPILER V9.60.7.0   LED_CTRL                                                          01/15/2025 11:54:04 PAGE 12  
+
+ 664   1      
+ 665   1          if (c_duty > pwm_in_duty)
+ 666   1          {
+ 667   2              if (is_pwr_down)
+ 668   2                  c_duty -= 1;
+ 669   2              else
+ 670   2              {
+ 671   3                  if (c_duty > 50)
+ 672   3                  {
+ 673   4      
+ 674   4                      c_duty -= 10;
+ 675   4                  }
+ 676   3                  else
+ 677   3                  {
+ 678   4                      c_duty -= 1;
+ 679   4                  }
+ 680   3              }
+ 681   2          }
+ 682   1          if (c_duty <= pwm_in_duty)
+ 683   1          {
+ 684   2              c_duty = pwm_in_duty;
+ 685   2              gamma = c_duty;
+ 686   2              is_pwr_down = 0; // 完成缓慢升降
+ 687   2              led_state = LED_NULL;
+ 688   2          }
+ 689   1          set_pwm_duty();
+ 690   1      }
+ 691          
+ 692          // 有没有降功率
+ 693          #define LOW_PWR_R7 P00
+ 694          // 有没有三合一
+ 695          #define _3_1_R14 P02
+ 696          // 有没有时空
+ 697          #define T_C_R11 P03
+ 698          
+ 699          #define T_C_R8 P13
+ 700          #define T_C_R9 P12
+ 701          #define T_C_R10 P11
+ 702          
+ 703          // 降功率、时空、三合一功能
+ 704          void option_fun(void)
+ 705          {
+ 706   1          flag_init();
+ 707   1          // p13输入上拉，时空组合R8
+ 708   1          P1_MD0 &= ~(GPIO_P13_MODE_SEL(0x3));
+ 709   1          P1_PU |= (GPIO_P13_PULL_UP(0x1));
+ 710   1          P1_PD |= (GPIO_P13_PULL_PD(1));
+ 711   1          //   时空组合R9
+ 712   1          P1_MD0 &= ~(GPIO_P12_MODE_SEL(0x3));
+ 713   1          P1_PU |= (GPIO_P12_PULL_UP(0x1));
+ 714   1          // 时空组合R10
+ 715   1          P1_MD0 &= ~(GPIO_P11_MODE_SEL(0x3));
+ 716   1          P1_PU |= (GPIO_P11_PULL_UP(0x1));
+ 717   1          // 降功率有/无 R7
+ 718   1          P0_MD0 &= ~(GPIO_P00_MODE_SEL(0x3));
+ 719   1          P0_PU |= (GPIO_P00_PULL_UP(0x1));
+ 720   1          // 三合一有/无 R14
+ 721   1          P0_MD0 &= ~(GPIO_P02_MODE_SEL(0x3));
+ 722   1          P0_PU |= (GPIO_P02_PULL_UP(0x1));
+ 723   1          // 时空有/无 R11
+ 724   1          P0_MD0 &= ~(GPIO_P03_MODE_SEL(0x3));
+ 725   1          P0_PU |= (GPIO_P03_PULL_UP(0x1));
+C51 COMPILER V9.60.7.0   LED_CTRL                                                          01/15/2025 11:54:04 PAGE 13  
+
+ 726   1      
+ 727   1          if (LOW_PWR_R7 == 0) // 低电平有降功率
+ 728   1          {
+ 729   2              l_pwr.en = 1;
+ 730   2              printf("l_pwr.en = 1\r\n");
+ 731   2          }
+ 732   1          else
+ 733   1          {
+ 734   2              l_pwr.en = 0;
+ 735   2              printf("l_pwr.en = 0\r\n");
+ 736   2          }
+ 737   1          if (adc0_val > 4000) // LIN 改 加入了ntc和电位器AD值的判断 ntc和电位器都上拉
+ 738   1          {
+ 739   2              ex_temp_en = 0;
+ 740   2              printf("ex_temp_en = 0\r\n");
+ 741   2          }
+ 742   1          else
+ 743   1          {
+ 744   2              ex_temp_en = 1;
+ 745   2              printf("ex_temp_en = 1\r\n");
+ 746   2          }
+ 747   1          if (adc1_val > 4000)
+ 748   1          {
+ 749   2              adjust_en = 0;
+ 750   2              printf("adjust_en = 0\r\n");
+ 751   2          }
+ 752   1          else
+ 753   1          {
+ 754   2              adjust_en = 1;
+ 755   2              printf("adjust_en = 1\r\n");
+ 756   2          }
+ 757   1          if (_3_1_R14 == 1) // 高电平有三合一
+ 758   1          {
+ 759   2              _3_1.en = 1;
+ 760   2              // simple_over = 1;
+ 761   2              printf("_3_1.en  = 1\r\n");
+ 762   2          }
+ 763   1          else
+ 764   1          {
+ 765   2              _3_1.en = 0;
+ 766   2              simple_over = 1;
+ 767   2              printf("_3_1.en  = 0\r\n");
+ 768   2          }
+ 769   1      
+ 770   1          // 低电平时空
+ 771   1          if (T_C_R11 == 0) //  0
+ 772   1          {
+ 773   2              t_ctrl.en = 1;
+ 774   2              printf("t_ctrl.en = 1\r\n");
+ 775   2          }
+ 776   1          else
+ 777   1          {
+ 778   2              t_ctrl.en = 0;
+ 779   2              printf("t_ctrl.en = 0\r\n");
+ 780   2          }
+ 781   1      
+ 782   1          // 时控模式0：100%6H 50%6H 0%
+ 783   1          // 时控模式1：100%4H 50%8H 0%
+ 784   1          // 时控模式2：100%5H 70%3H 50%4H 0%
+ 785   1          // 时控模式3：100%4H 70%4H 50%4H 0%
+ 786   1          // 时控模式4：100%4H 60%2H 30%3H 60%2H 100%1H 0%
+ 787   1      
+C51 COMPILER V9.60.7.0   LED_CTRL                                                          01/15/2025 11:54:04 PAGE 14  
+
+ 788   1          if (T_C_R8 == 1 && T_C_R9 == 1 && T_C_R10 == 1)
+ 789   1          {
+ 790   2              t_ctrl.list = 0;
+ 791   2              p_list = &t_ctrl_lis_0;
+ 792   2              printf("t_ctrl.list = 0 \r\n");
+ 793   2          }
+ 794   1          else if (T_C_R8 == 0 && T_C_R9 == 1 && T_C_R10 == 1)
+ 795   1          {
+ 796   2              t_ctrl.list = 1;
+ 797   2              p_list = &t_ctrl_lis_1;
+ 798   2              printf("t_ctrl.list = 1\r\n ");
+ 799   2          }
+ 800   1          else if (T_C_R8 == 1 && T_C_R9 == 0 && T_C_R10 == 1)
+ 801   1          {
+ 802   2              t_ctrl.list = 2;
+ 803   2              p_list = &t_ctrl_lis_2;
+ 804   2              printf("t_ctrl.list = 2\r\n ");
+ 805   2          }
+ 806   1          else if (T_C_R8 == 1 && T_C_R9 == 1 && T_C_R10 == 0)
+ 807   1          {
+ 808   2              t_ctrl.list = 3;
+ 809   2              p_list = &t_ctrl_lis_3;
+ 810   2              printf("t_ctrl.list = 3\r\n ");
+ 811   2          }
+ 812   1          else if (T_C_R8 == 0 && T_C_R9 == 0 && T_C_R10 == 1)
+ 813   1          {
+ 814   2              t_ctrl.list = 4;
+ 815   2              p_list = &t_ctrl_lis_4;
+ 816   2              printf("t_ctrl.list = 4\r\n");
+ 817   2          }
+ 818   1      }
+ 819          
+ 820          // 降功率计时处理
+ 821          void l_pwr_timer_handler(void)
+ 822          {
+ 823   1          if (l_pwr.en == 1)
+ 824   1          {
+ 825   2              if (l_pwr.t < L_PWR_T) // 小时
+ 826   2              {
+ 827   3                  l_pwr.t++;
+ 828   3              }
+ 829   2              else
+ 830   2              {
+ 831   3                  extemp_tctrl_flag = 1;
+ 832   3                  if (adjust_en == 1) // 电位器使能
+ 833   3                  {
+ 834   4                      if (_3_1.en == 1) // 有三合一功能和电位器
+ 835   4                      {
+ 836   5                          // 判断PWM_in占空比大于74
+ 837   5                          if (pwm_in_duty_xuwei > ajust_duty / 100 * 75) // LIN 改  75%改成电位器的75%
+ 838   5                          {
+ 839   6                              max_duty = ajust_duty / 100 * 75;
+ 840   6                              l_pwr.act = 1; // 降功率状态
+ 841   6                              l_pwr.en = 0;  // 处理完成，使能降功率
+ 842   6                              is_pwr_down = 1;
+ 843   6                          }
+ 844   5                      }
+ 845   4                      else
+ 846   4                      {
+ 847   5                          max_duty = ajust_duty / 100 * 75;
+ 848   5                          l_pwr.act = 1; // 降功率状态
+ 849   5                          l_pwr.en = 0;  // 处理完成，使能降功率
+C51 COMPILER V9.60.7.0   LED_CTRL                                                          01/15/2025 11:54:04 PAGE 15  
+
+ 850   5                          is_pwr_down = 1;
+ 851   5                      }
+ 852   4                  }
+ 853   3      
+ 854   3                  if (adjust_en == 0) // 无电位器
+ 855   3                  {
+ 856   4                      if (_3_1.en) // 有三合一功能
+ 857   4                      {
+ 858   5                          // 判断PWM_in占空比大于74
+ 859   5                          if (pwm_in_duty > _75_DUTY)
+ 860   5                          {
+ 861   6                              max_duty = _75_DUTY;
+ 862   6                              l_pwr.act = 1; // 降功率状态
+ 863   6                              l_pwr.en = 0;  // 处理完成，使能降功率
+ 864   6                              is_pwr_down = 1;
+ 865   6                          }
+ 866   5                      }
+ 867   4                      else
+ 868   4                      {
+ 869   5                          max_duty = _75_DUTY;
+ 870   5                          l_pwr.act = 1; // 降功率状态
+ 871   5                          l_pwr.en = 0;  // 处理完成，使能降功率
+ 872   5                          is_pwr_down = 1;
+ 873   5                      }
+ 874   4                  }
+ 875   3                  l_pwr.en = 0;
+ 876   3                  ex_max_duty = max_duty;
+ 877   3              }
+ 878   2          }
+ 879   1      }
+ 880          
+ 881          // 处理降功率，时控时，可调的占空比范围
+ 882          // 延时开机模式，强制pwm_in_duty=0
+ 883          void pwm_in_handler(void)
+ 884          {
+ 885   1          // if(_3_1.en)     //有三合一功能
+ 886   1          {
+ 887   2              // 时控和降功率激活状态，最大占空比不超过降功率，时控, LIN 改 过温降�
+             -��率设定的占空比
+ 888   2              //                      if(t_ctrl.en == 1)
+ 889   2              //                      {
+ 890   2              //                              if(_3_1.en==1)
+ 891   2              //                {
+ 892   2              //                    pwm_in_duty = pwm_in_duty;
+ 893   2              //                }
+ 894   2              //
+ 895   2              //                              if(adjust_en==1)
+ 896   2              //                              {
+ 897   2              //                                      pwm_in_duty = ajust_duty;
+ 898   2              //                              }
+ 899   2              //                              if(_3_1.en==0&&adjust_en==0)
+ 900   2              //                              {
+ 901   2              //                                      pwm_in_duty = max_duty;
+ 902   2              //                              }
+ 903   2              //                      }
+ 904   2              if (t_ctrl.en == 0 && adjust_en == 1)
+ 905   2              {
+ 906   3                  if (_3_1.en == 1)
+ 907   3                  {
+ 908   4                      pwm_in_duty = pwm_in_duty_xuwei;
+ 909   4                  }
+ 910   3                  else
+C51 COMPILER V9.60.7.0   LED_CTRL                                                          01/15/2025 11:54:04 PAGE 16  
+
+ 911   3                  {
+ 912   4                      pwm_in_duty = ajust_duty;
+ 913   4                  }
+ 914   3              }
+ 915   2              if (l_pwr.act == 1 || t_ctrl.en == 1)
+ 916   2              {
+ 917   3                  // 进入降功率模式
+ 918   3      
+ 919   3                  if (adjust_en == 1 && _3_1.en == 1)
+ 920   3                  {
+ 921   4      
+ 922   4                      if (pwm_in_duty_xuwei > max_duty)
+ 923   4                      {
+ 924   5                          pwm_in_duty_xuwei = max_duty;
+ 925   5                      }
+ 926   4                      pwm_in_duty = pwm_in_duty_xuwei;
+ 927   4                  }
+ 928   3                  else
+ 929   3                  {
+ 930   4                      if (pwm_in_duty > max_duty)
+ 931   4                      {
+ 932   5                          pwm_in_duty = max_duty;
+ 933   5                      }
+ 934   4                  }
+ 935   3              }
+ 936   2              if (ex_temp_en == 1 && t_ctrl.en == 0)
+ 937   2              {
+ 938   3                  if (adjust_en == 0 && _3_1.en == 0)
+ 939   3                  {
+ 940   4                      pwm_in_duty = max_duty;
+ 941   4                  }
+ 942   3                  if (pwm_in_duty > max_duty)
+ 943   3                  {
+ 944   4                      pwm_in_duty = max_duty;
+ 945   4                  }
+ 946   3                  if (max_duty == 0)
+ 947   3                  {
+ 948   4                      pwm_in_duty = 0;
+ 949   4                  }
+ 950   3              }
+ 951   2          }
+ 952   1          // is_pwr_down=0;
+ 953   1          //    if(dly_pwr_on == 1)
+ 954   1          //    {
+ 955   1          //        // 延时启动，强制pwm 0
+ 956   1          //        pwm_in_duty = 0;
+ 957   1          //    }
+ 958   1      }
+ 959          
+ 960          // 1s调用一次
+ 961          void t_ctrl_timer_handler(void)
+ 962          {
+ 963   1          if (t_ctrl.en == 1)
+ 964   1      
+ 965   1          {
+ 966   2              // 当前列表时间非255，如果是255则说明时空结束
+ 967   2              if (p_list[t_ctrl.level].t != 255)
+ 968   2              {
+ 969   3                  //                  t_ctrl.list = 4;
+ 970   3                  //        p_list = &t_ctrl_lis_4;
+ 971   3                  t_ctrl.t++;
+ 972   3                  if (t_ctrl.t >= (p_list[t_ctrl.level].t * 60 * 60)) // 改成10s
+C51 COMPILER V9.60.7.0   LED_CTRL                                                          01/15/2025 11:54:04 PAGE 17  
+
+ 973   3                  // if(t_ctrl.t >= (p_list[t_ctrl.level].t * 10) )
+ 974   3                  {
+ 975   4                      t_ctrl.level++;
+ 976   4                      is_pwr_down = 1;
+ 977   4                      t_ctrl.t = 0;
+ 978   4                      max_duty = p_list[t_ctrl.level].b;
+ 979   4                      extemp_tctrl_flag = 1;
+ 980   4                      if (adjust_en == 1) // LIN 改 加入电位器时 将最大值变成电位器的最大值
+ 981   4                      {
+ 982   5                          switch (max_duty)
+ 983   5                          {
+ 984   6                          case 6000:
+ 985   6                              max_duty = ajust_duty;
+ 986   6                              break;
+ 987   6                          case 4200:
+ 988   6                              max_duty = ajust_duty / 10 * 7;
+ 989   6                              break;
+ 990   6                          case 3600:
+ 991   6                              max_duty = ajust_duty / 10 * 6;
+ 992   6                              break;
+ 993   6                          case 3000:
+ 994   6                              max_duty = ajust_duty / 2;
+ 995   6                              break;
+ 996   6                          case 1800:
+ 997   6                              max_duty = ajust_duty / 10 * 3;
+ 998   6                              break;
+ 999   6                          default:
+1000   6                              break;
+1001   6                          }
+1002   5                      }
+1003   4                      if (_3_1.en == 1 && ex_temp_en == 1 && t_ctrl.en == 0)
+1004   4                      {
+1005   5                          //  if(adjust_en==0)
+1006   5                          {
+1007   6                              if (ex_pwm_in_duty < max_duty)
+1008   6                              {
+1009   7                                  max_duty = ex_pwm_in_duty;
+1010   7                              }
+1011   6                          }
+1012   5                          //                                                          else
+1013   5                          //                                                          {
+1014   5                          //                                                                  if(pwm_in_duty_xuwei<max_duty)
+1015   5                          //                                                                  {
+1016   5                          //                                                                          max_duty=pwm_in_duty_xuwei;
+1017   5                          //                                                                  }
+1018   5                          //                                                          }
+1019   5                      }
+1020   4                      pwm_in_duty = max_duty; // 修复t_ctrl_lis_4，功率降到30%升不了60%
+1021   4                      if (adjust_en == 1 && _3_1.en == 1)
+1022   4                      {
+1023   5                          pwm_in_duty_xuwei = max_duty;
+1024   5                      }
+1025   4                  }
+1026   3              }
+1027   2      
+1028   2              //                              if(p_list[t_ctrl.level].t != 0)
+1029   2              //                              {
+1030   2              //                                      t_ctrl.level=0;
+1031   2              //                              }
+1032   2              // is_pwr_dow=0;
+1033   2          }
+1034   1          // printf("pwm_in_duty= %d  t= %d  ajust_duty=%d  max_duty=%d adjust_val=%d pwm_save[0]=%d\r\n", (int)
+C51 COMPILER V9.60.7.0   LED_CTRL                                                          01/15/2025 11:54:04 PAGE 18  
+
+             -pwm_in_duty,(int)t_ctrl.t,(int)ajust_duty,(int)c_duty,(int)adjust_val,(int)pwm_save[0]);
+1035   1          // printf("pwm_in_duty= %d   t= %d    t_ctrl.level=%d    c_duty=%d\r\n", (int)pwm_in_duty,(int)t_ctrl.
+             -t,(int)ajust_duty,(int)c_duty);
+1036   1      }
+1037          
+1038          // 1秒调用一次
+1039          extern u8 lvd_mode;
+1040          extern volatile u8 lvd_flag;
+1041          void dly_pwr_on_handler(void)
+1042          {
+1043   1          if (dly_pwr_on == 1) // 延时启动
+1044   1          {
+1045   2              user_printf("lvd pwr low \n");
+1046   2              dly_pwr_on_cnt++;
+1047   2              if (dly_pwr_on_cnt >= 5)
+1048   2              {
+1049   3                  lvd_flag = 0;
+1050   3                  dly_pwr_on_cnt = 0;
+1051   3      
+1052   3                  dly_pwr_on = 0;
+1053   3      
+1054   3                  c_duty = 0;
+1055   3                  max_duty = MAX_DUTY;
+1056   3      
+1057   3                  t_ctrl.list = 0;
+1058   3                  t_ctrl.t = 0;
+1059   3                  t_ctrl.en = 0;
+1060   3                  t_ctrl.level = 0;
+1061   3      
+1062   3                  l_pwr.en = 0;
+1063   3                  l_pwr.act = 0;
+1064   3                  l_pwr.t = 0;
+1065   3      
+1066   3                  _3_1.en = 0;
+1067   3                  pwm_in_duty = 0;
+1068   3                  ex_temp_en = 0;
+1069   3                  adjust_en = 0;
+1070   3                  gamma = 2;
+1071   3                  option_fun();
+1072   3      
+1073   3                  led_state = LED_PWR_ON;
+1074   3                  printf("LED_PWR_ON");
+1075   3              }
+1076   2          }
+1077   1      }
+1078          void flag_init()
+1079          {
+1080   1          lvd_flag = 0;
+1081   1          dly_pwr_on_cnt = 0;
+1082   1      
+1083   1          dly_pwr_on = 0;
+1084   1      
+1085   1          c_duty = 0;
+1086   1          max_duty = MAX_DUTY;
+1087   1      
+1088   1          t_ctrl.list = 0;
+1089   1          t_ctrl.t = 0;
+1090   1          t_ctrl.en = 0;
+1091   1          t_ctrl.level = 0;
+1092   1      
+1093   1          l_pwr.en = 0;
+1094   1          l_pwr.act = 0;
+C51 COMPILER V9.60.7.0   LED_CTRL                                                          01/15/2025 11:54:04 PAGE 19  
+
+1095   1          l_pwr.t = 0;
+1096   1      
+1097   1          _3_1.en = 0;
+1098   1          pwm_in_duty = 0;
+1099   1          ex_temp_en = 0;
+1100   1          adjust_en = 0;
+1101   1          gamma = 2;
+1102   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   3913    ----
+   CONSTANT SIZE    =    328    ----
+   XDATA SIZE       =    110       5
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      6    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
