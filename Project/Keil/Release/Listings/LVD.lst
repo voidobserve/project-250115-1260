@@ -1,4 +1,4 @@
-C51 COMPILER V9.60.7.0   LVD                                                               11/20/2024 14:32:27 PAGE 1   
+C51 COMPILER V9.60.7.0   LVD                                                               12/30/2025 09:43:28 PAGE 1   
 
 
 C51 COMPILER V9.60.7.0, COMPILATION OF MODULE LVD
@@ -62,7 +62,7 @@ line level    source
   51   1                      lvd_mode = 3;
   52   1      }
   53          
-C51 COMPILER V9.60.7.0   LVD                                                               11/20/2024 14:32:27 PAGE 2   
+C51 COMPILER V9.60.7.0   LVD                                                               12/30/2025 09:43:28 PAGE 2   
 
   54          //上电配置4V,上电后再配置为3V，用于检查电压跌落
   55          void init_lvd_4V(void)
