@@ -426,6 +426,11 @@
               <FileType>1</FileType>
               <FilePath>..\..\User\adc.c</FilePath>
             </File>
+            <File>
+              <FileName>temperature_adjust.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\User\temperature_adjust.c</FilePath>
+            </File>
           </Files>
         </Group>
       </Groups>

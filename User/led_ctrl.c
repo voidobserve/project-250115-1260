@@ -2,29 +2,16 @@
 #include "main.h"
 #include <math.h>
 #include <stdio.h>
+
+#include "user_config.h"
+
+
+
 extern void pwm_in_handler(void);
 extern u16 ntc_val;
 extern u16 adc0_val;
 extern u16 adc1_val;
 
-// 输出占空比100%时，对应的占空比参数
-#define MAX_DUTY (6000)
-#define PER_DUTY (10) //
-#define _75_DUTY 4500 // 75%亮度
-#define _70_DUTY 4200
-#define _60_DUTY 3600
-#define _50_DUTY 3000
-#define _30_DUTY 1800
-
-#define _75_TEMP 2420              // 75摄氏度对应的ADC值
-#define _3_1V 3000                 // 3.4V对应的ADC值
-#define L_PWR_T (1 * 60 * 60)      // 降功率
-#define L_TEMP_PWR_T (1 * 30 * 60) // 过温半小时降功率
-// #define LEVLE_PER 184              // 每个档位对应的AD值 （20级挡位调节）
-// #define LEVLE_PER 92 // 每个档位对应的AD值 (40级挡位调节)
-#define LEVLE_PER 23 // 每个档位对应的AD值 (160级挡位调节)
-#define ADJUST_STEP 160 // 调节级数，例如 20级、40级、160级
-#define DEAD_ZONE 5    // adc死区范围± 5
 
 bit ex_temp_en; // 过温降功率标志位
 // #define L_PWR_T     (1*10)
@@ -72,7 +59,11 @@ l_pwr_t l_pwr;
 _3_1_t _3_1;
 bit dly_pwr_on = 0;
 u8 dly_pwr_on_cnt = 0;
-bit is_pwr_down = 0; // 1：正在降功率，调用缓升缓降逻辑
+// 1：正在降功率，调用缓升缓降逻辑
+/*
+    缓慢升降功率是否使能的标志位，0--不使能，1--使能
+*/
+bit is_pwr_down = 0;
 bit adjust_en;
 // 时控模式0：100%6H 50%6H 0%
 // 时控模式1：100%4H 50%8H 0%
@@ -253,81 +244,21 @@ void adjust_pwm()
 }
 
 //
-u16 ex_temp_t = 0;
-u8 ex_temp_cnt = 0; // 过温降功率处理次数，第一次降到90% 第二次80%-----
-u8 ex_temp_state = 1;
+u16 ex_temp_t = 0;    // 温度计数值，预计每秒加一
+u8 ex_temp_cnt = 0;   // 过温降功率处理次数，第一次降到90% 第二次80%-----
+u8 ex_temp_state = 1; // 标志位，温度扫描的半个小时是否到来
 
-#if 0 // 歧义 过温降功率是否降为当前值的90%
-
-void ex_temp_adjust_timer()//过温降功率定时处理
-{
-	if(ex_temp_en==1)//判断过温降功率标志
-	{
-		if(adjust_en==0)//判断电位器
-			{
-				if(ntc_val<_75_TEMP&&ex_temp_state==1)//半小时处理一次 AD值越小 温度越高
-				{
-					if(pwm_in_duty>(6000*ex_temp_cnt/10))
-					{
-						max_duty=6000*ex_temp_cnt/10;//第一次降到90%，之后每次将10% 10%对应600
-						ex_temp_state=0;//处理完成 半小时后再开启
-					}
-					else
-					{
-						ex_temp_cnt--;
-						ex_temp_state=1;
-					}
-				}
-				ex_temp_t++;
-				if(ex_temp_t==L_TEMP_PWR_T)
-				{
-					ex_temp_t=0;//半小时计数清零
-					ex_temp_state=1;
-					ex_temp_cnt--;//每半小时计数一次
-				}
-				if(ntc_val>_75_TEMP)//判断温度是否下降到75以下
-				{
-					ex_temp_cnt=9;
-				}
-			}
-			if(adjust_en==1)//判断电位器
-			{
-				if(ntc_val<_75_TEMP&&ex_temp_state==1)//半小时处理一次 AD值越小 温度越高
-				{
-					if(pwm_in_duty>(ajust_duty*ex_temp_cnt/10))
-					{
-						max_duty=ajust_duty*ex_temp_cnt/10;//第一次降到90%，之后80% 70% 
-						ex_temp_state=0;//处理完成 半小时后再开启
-					}
-					else
-					{
-						ex_temp_cnt--;
-						ex_temp_state=1;
-					}
-				}
-				ex_temp_t++;
-				if(ex_temp_t==L_TEMP_PWR_T)
-				{
-					ex_temp_t=0;//半小时计数清零
-					ex_temp_state=1;
-					ex_temp_cnt--;//每半小时计数一次
-				}
-				if(ntc_val>_75_TEMP)//判断温度是否下降到75以下
-				{
-					ex_temp_cnt=9;
-				}
-			}
-	}
-}
-#endif
-u16 pwm_save[10] = 0;
-u16 ex_duty = 0;
-bit extemp_flag = 0;
+u16 pwm_save[10] = 0; // 检测温度控制中，使用到的数组
+u16 ex_duty = 0; // 温度控制中，存放经过温度限制后，可调的、最大的pwm占空比
+bit extemp_flag = 0; // 标志位，是否检测到温度过热
 bit extemp_tctrl_flag = 0;
+#if 0
 void ex_temp_adjust_timer() // 过温降功率 定时判断 每秒执行一次
 {
     // printf("ntc_val=%d  ex_temp_cnt=%d   ex_temp_t=%d  \r\n",(int)pwm_in_duty,(int)c_duty,(int)ex_temp_t);
-    if (ex_temp_en == 1 && t_ctrl.en == 0)
+    
+    // 如果使能了温度检测功能 并且 时控功能 未使能
+    if (ex_temp_en == 1 && t_ctrl.en == 0) 
     {
         // ntc_val=adjust_val;
         if (extemp_tctrl_flag == 1)
@@ -336,26 +267,41 @@ void ex_temp_adjust_timer() // 过温降功率 定时判断 每秒执行一次
             ex_temp_cnt = 0;
             extemp_tctrl_flag = 0;
         }
-        if (ntc_val < _3_1V && ex_temp_state == 1) // 半小时处理一次 AD值越小 温度越高
+
+        // 半小时处理一次 AD值越小 温度越高
+        /*
+            如果半个小时到来，检测到温度过大 (温度越大，检测到的ad值越小) 
+        */
+        if (ntc_val < _3_1V && ex_temp_state == 1) 
         {
-            pwm_save[ex_temp_cnt] = pwm_in_duty; // 用数组存住第一个值
+            pwm_save[ex_temp_cnt] = pwm_in_duty; 
 
             ex_duty = pwm_save[0] - (pwm_save[0] / 10 * (ex_temp_cnt + 1)); // 第一次降到90%，之后每次将10%
             ex_temp_state = 0;                                              // 处理完成 半小时后再开启
-            ex_temp_t = 0;
+            ex_temp_t = 0; // 清空温度时间计数
 
-            max_duty = ex_duty;
-            ex_temp_cnt++;
-            if (ex_temp_cnt > 9)
+            max_duty = ex_duty; // 更新可调的最大占空比
+            ex_temp_cnt++; // 温度过热次数加一
+            if (ex_temp_cnt > 9)  // 如果过热大于9次，将可调的最大占空比设置为0%
             {
                 max_duty = 0;
             }
-            extemp_flag = 1;
+
+            extemp_flag = 1; // 表示检测到了温度过热
         }
-        if (ntc_val > _3_1V) // 温度降下来后 不干预最大值 并且计数置0 下次过温再从90%开始
+
+        // 温度降下来后 不干预最大值 并且计数置0 下次过温再从90%开始
+        /*  
+            如果检测到温度有下降，这里每秒会进入一次
+        */
+        if (ntc_val > _3_1V) 
         {
             ex_temp_cnt = 0;
-            if (extemp_flag == 1 && ex_temp_state == 1)
+            
+            /*
+                如果之前检测到温度过热，并且半个小时的扫描周期到来
+            */
+            if (extemp_flag == 1 && ex_temp_state == 1) 
             {
                 if (extemp_tctrl_flag == 0)
                 {
@@ -366,6 +312,7 @@ void ex_temp_adjust_timer() // 过温降功率 定时判断 每秒执行一次
                         else
                             max_duty = ajust_duty;
                     }
+
                     if (adjust_en == 0)
                     {
                         if (_3_1.en == 1)
@@ -373,6 +320,7 @@ void ex_temp_adjust_timer() // 过温降功率 定时判断 每秒执行一次
                         else
                             max_duty = pwm_save[0];
                     }
+
                     if (P00 == 0)
                     {
                         if (max_duty > ex_max_duty)
@@ -381,6 +329,7 @@ void ex_temp_adjust_timer() // 过温降功率 定时判断 每秒执行一次
                         }
                     }
                 }
+
                 if (extemp_tctrl_flag == 1)
                 {
                     extemp_tctrl_flag = 0;
@@ -390,8 +339,9 @@ void ex_temp_adjust_timer() // 过温降功率 定时判断 每秒执行一次
                 }
             }
         }
+
         ex_temp_t++;
-        if (ex_temp_t == L_TEMP_PWR_T)
+        if (ex_temp_t == L_TEMP_PWR_T) // 如果超过了30分钟
         {
             ex_temp_t = 0; // 半小时计数清零
             ex_temp_state = 1;
@@ -403,10 +353,108 @@ void ex_temp_adjust_timer() // 过温降功率 定时判断 每秒执行一次
         //				pwm_save[0]=max_duty;
         //			}
     }
-    is_pwr_down = 1;
+
+    is_pwr_down = 1; // 使能缓慢升降功率，给标志位置一
     // printf("ex_temp_state=%d\r\n",(int)ex_temp_state);
     // printf("pwm_in_duty= %d  t= %d  ajust_duty=%d  c_duty=%d adjust_val=%d pwm_save[0]=%d\r\n", (int)pwm_in_duty,(int)t_ctrl.t,(int)ajust_duty,(int)c_duty,(int)adjust_val,(int)pwm_save[0]);
 }
+#endif
+
+#if 0
+volatile u32 temperature_scan_cnt = 0; // 温度扫描时间计数，在定时器中累加
+volatile u8 temperature_status = 0;// 状态机，记录当前温度状态
+
+void ex_temp_adjust_timer() // 过温降功率 定时判断 每秒执行一次
+{ 
+    // 如果使能了温度检测功能 并且 时控功能 未使能
+    if (ex_temp_en == 1 && t_ctrl.en == 0) 
+    { 
+        if (extemp_tctrl_flag == 1)
+        {
+            pwm_save[0] = max_duty;
+            ex_temp_cnt = 0;
+            extemp_tctrl_flag = 0;
+        }
+
+        // 半小时处理一次 AD值越小 温度越高
+        /*
+            如果半个小时到来，检测到温度过大 (温度越大，检测到的ad值越小) 
+        */
+        if (ntc_val < _3_1V && ex_temp_state == 1) 
+        {
+            pwm_save[ex_temp_cnt] = pwm_in_duty; 
+
+            ex_duty = pwm_save[0] - (pwm_save[0] / 10 * (ex_temp_cnt + 1)); // 第一次降到90%，之后每次将10%
+            ex_temp_state = 0;                                              // 处理完成 半小时后再开启
+            ex_temp_t = 0; // 清空温度时间计数
+
+            max_duty = ex_duty; // 更新可调的最大占空比
+            ex_temp_cnt++; // 温度过热次数加一
+            if (ex_temp_cnt > 9)  // 如果过热大于9次，将可调的最大占空比设置为0%
+            {
+                max_duty = 0;
+            }
+
+            extemp_flag = 1; // 表示检测到了温度过热
+        }
+
+        if (ntc_val > _3_1V) // 温度降下来后 不干预最大值 并且计数置0 下次过温再从90%开始
+        {
+            ex_temp_cnt = 0;
+            
+            /*
+                如果之前检测到温度过热，并且半个小时的扫描周期到来
+            */
+            if (extemp_flag == 1 && ex_temp_state == 1) 
+            {
+                if (extemp_tctrl_flag == 0)
+                {
+                    if (adjust_en == 1)
+                    {
+                        if (_3_1.en == 1)
+                            max_duty = pwm_in_duty_xuwei;
+                        else
+                            max_duty = ajust_duty;
+                    }
+
+                    if (adjust_en == 0)
+                    {
+                        if (_3_1.en == 1)
+                            max_duty = ex_pwm_in_duty;
+                        else
+                            max_duty = pwm_save[0];
+                    }
+
+                    if (P00 == 0)
+                    {
+                        if (max_duty > ex_max_duty)
+                        {
+                            max_duty = ex_max_duty;
+                        }
+                    }
+                }
+
+                if (extemp_tctrl_flag == 1)
+                {
+                    extemp_tctrl_flag = 0;
+                    extemp_flag = 0;
+                    ex_temp_cnt = 0;
+                    return;
+                }
+            } // 如果之前检测到温度过热，并且半个小时的扫描周期到来
+        }
+
+        // ex_temp_t++;
+        // if (ex_temp_t == L_TEMP_PWR_T) // 如果超过了30分钟
+        // {
+        //     ex_temp_t = 0; // 半小时计数清零
+        //     ex_temp_state = 1;
+        // } 
+    }
+
+    is_pwr_down = 1; // 使能缓慢升降功率，给标志位置一 
+}
+#endif
 
 void set_pwm_duty(void)
 {
@@ -738,12 +786,12 @@ void option_fun(void)
     }
     if (adc0_val > 4000) // LIN 改 加入了ntc和电位器AD值的判断 ntc和电位器都上拉
     {
-        ex_temp_en = 0;
+        ex_temp_en = 0; // 不使能 温度检测 功能
         printf("ex_temp_en = 0\r\n");
     }
     else
     {
-        ex_temp_en = 1;
+        ex_temp_en = 1; // 使能 温度检测 功能
         printf("ex_temp_en = 1\r\n");
     }
     if (adc1_val > 4000)
@@ -769,7 +817,7 @@ void option_fun(void)
         printf("_3_1.en  = 0\r\n");
     }
 
-    // 低电平时空
+    // 低电平使能 时控
     if (T_C_R11 == 0) //  0
     {
         t_ctrl.en = 1;
@@ -830,6 +878,8 @@ void l_pwr_timer_handler(void)
         }
         else
         {
+            // 大于1小时
+
             extemp_tctrl_flag = 1;
             if (adjust_en == 1) // 电位器使能
             {
@@ -1048,6 +1098,7 @@ void dly_pwr_on_handler(void)
         dly_pwr_on_cnt++;
         if (dly_pwr_on_cnt >= 5)
         {
+            // 初始化全局变量：
             lvd_flag = 0;
             dly_pwr_on_cnt = 0;
 
@@ -1077,6 +1128,8 @@ void dly_pwr_on_handler(void)
         }
     }
 }
+
+// 初始化全局变量
 void flag_init()
 {
     lvd_flag = 0;

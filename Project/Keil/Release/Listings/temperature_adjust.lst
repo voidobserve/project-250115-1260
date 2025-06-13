@@ -1,0 +1,187 @@
+C51 COMPILER V9.60.7.0   TEMPERATURE_ADJUST                                                06/13/2025 15:15:03 PAGE 1   
+
+
+C51 COMPILER V9.60.7.0, COMPILATION OF MODULE TEMPERATURE_ADJUST
+OBJECT MODULE PLACED IN .\Release\Objects\temperature_adjust.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE ..\..\User\temperature_adjust.c LARGE OPTIMIZE(8,SPEED) BROWSE INTVECTOR
+                    -(0X000C) INCDIR(..\..\Libraries\Include;..\..\User) INTERVAL(3) DEBUG OBJECTEXTEND PRINT(.\Release\Listings\temperature_
+                    -adjust.lst) OBJECT(.\Release\Objects\temperature_adjust.obj)
+
+line level    source
+
+   1          #include "user_config.h"
+   2          #include "temperature_adjust.h"
+   3          
+   4          extern bit ex_temp_en; // 过温降功率标志位
+   5          extern bit ex_temp_en; // 过温降功率标志位
+   6          extern struct
+   7          {
+   8              u32 t;    // 计时器
+   9              u8 level; // 时空列表执行的哪一个时间段
+  10              u8 list;  // 时控列表，5个列表
+  11              u8 en;    // 使能
+  12          } t_ctrl;
+  13          extern bit extemp_tctrl_flag;
+  14          extern u16 ntc_val; // 存放求平均之后，得到的ad值
+  15          // extern u8 ex_temp_state; // 标志位，温度扫描的半个小时是否到来
+  16          extern u16 max_duty; // 可调的最大占空比
+  17          // extern u16 ex_duty;      // 温度控制中，存放经过温度限制后，可调的、最大的pwm占
+             -空比
+  18          // extern bit extemp_flag;  // 标志位，是否检测到温度过热
+  19          extern bit adjust_en;
+  20          extern u32 pwm_in_duty_xuwei;
+  21          extern struct
+  22          {
+  23              u8 en;
+  24          } _3_1;
+  25          extern u16 ajust_duty;
+  26          extern u32 ex_pwm_in_duty;
+  27          extern u16 ex_max_duty;
+  28          extern bit is_pwr_down;
+  29          
+  30          // volatile u32 temperature_scan_cnt = 0;                        // 温度扫描时间计数，在定时�
+             -�中累加
+  31          volatile u32 temperature_over_heat_cnt = 0;                   // 温度过热时间计数，在定时器�
+             -�累加
+  32          volatile u8 cur_temperature_status = TEMPERATURE_STATUS_NONE; // 状态机，记录当前温度状态
+  33          
+  34          // 过温降功率 定时判断 每秒执行一次
+  35          // 温度检测，进而调节pwm的功能，由定时器调用扫描
+  36          void temperature_scan_isr(void)
+  37          {
+  38   1          static u16 __sec_cnt = 0; // 为了适配原有的框架，加入了该变量，进行半小时计时
+  39   1          if (cur_temperature_status == TEMPERATURE_STATUS_NONE)
+  40   1          {
+  41   2              if (__sec_cnt < 65535) // 防止计数溢出
+  42   2              {
+  43   3                  __sec_cnt++;
+  44   3              }
+  45   2          }
+  46   1          else
+  47   1          {
+  48   2              // 如果温度以及过热，不使用该变量
+  49   2              __sec_cnt = 0;
+  50   2          }
+C51 COMPILER V9.60.7.0   TEMPERATURE_ADJUST                                                06/13/2025 15:15:03 PAGE 2   
+
+  51   1      
+  52   1          // 如果使能了温度检测功能 并且 时控功能 未使能
+  53   1          if (ex_temp_en == 1 && t_ctrl.en == 0)
+  54   1          {
+  55   2              if (TEMPERATURE_STATUS_NONE == cur_temperature_status) // 如果温度未过热
+  56   2              {
+  57   3                  // 如果检测到温度过大
+  58   3                  if (ntc_val < _3_1V)
+  59   3                  {
+  60   4                      // 更新可调的最大占空比
+  61   4                      max_duty = PWM_DUTY_50_PERCENT;
+  62   4                      cur_temperature_status = TEMPERATURE_STATUS_OVER_HEAT_0MIN;
+  63   4                  }
+  64   3                  else // 温度正常 不干预最大值 并且计数置0
+  65   3                  {
+  66   4                      if (__sec_cnt >= ((u16)60 * 30)) // 60 sec * 30 == 30 min
+  67   4                      {
+  68   5                          // 如果之前检测到温度过热，并且半个小时的扫描周期到来
+  69   5                          __sec_cnt = 0;
+  70   5      
+  71   5                          if (extemp_tctrl_flag == 0)
+  72   5                          {
+  73   6                              if (adjust_en == 1)
+  74   6                              {
+  75   7                                  if (_3_1.en == 1)
+  76   7                                  {
+  77   8                                      max_duty = pwm_in_duty_xuwei;
+  78   8                                  }
+  79   7                                  else
+  80   7                                  {
+  81   8                                      max_duty = ajust_duty;
+  82   8                                  }
+  83   7                              }
+  84   6      
+  85   6                              if (adjust_en == 0)
+  86   6                              {
+  87   7                                  if (_3_1.en == 1)
+  88   7                                  {
+  89   8                                      max_duty = ex_pwm_in_duty;
+  90   8                                  }
+  91   7                                  else
+  92   7                                  {
+  93   8                                      // max_duty = pwm_save[0];
+  94   8                                  }
+  95   7                              }
+  96   6      
+  97   6                              if (P00 == 0)
+  98   6                              {
+  99   7                                  if (max_duty > ex_max_duty)
+ 100   7                                  {
+ 101   8                                      max_duty = ex_max_duty;
+ 102   8                                  }
+ 103   7                              }
+ 104   6                          }
+ 105   5      
+ 106   5                          if (extemp_tctrl_flag == 1)
+ 107   5                          {
+ 108   6                              extemp_tctrl_flag = 0;
+ 109   6                              return;
+ 110   6                          }
+ 111   5                      } // 如果之前检测到温度过热，并且半个小时的扫描周期到来
+ 112   4                  }
+C51 COMPILER V9.60.7.0   TEMPERATURE_ADJUST                                                06/13/2025 15:15:03 PAGE 3   
+
+ 113   3              }
+ 114   2              else if (TEMPERATURE_STATUS_OVER_HEAT_0MIN == cur_temperature_status) // 检测到温度过热一�
+             -��
+ 115   2              {
+ 116   3                  // 原来的框架里有给 max_duty 赋值的语句，不知道会不会有冲突，这里一
+             -直给 max_duty 赋值
+ 117   3                  max_duty = PWM_DUTY_50_PERCENT;
+ 118   3      
+ 119   3                  // if (temperature_over_heat_cnt >= ((u32)300000)) // 5min
+ 120   3                  if (temperature_over_heat_cnt >= ((u32)5 * 60 * 1000)) // 5min
+ 121   3                  {
+ 122   4                      // 过热5min后，跳转到对应的语句块进行处理
+ 123   4                      cur_temperature_status = TEMPERATURE_STATUS_OVER_HEAT_5MIN;
+ 124   4                  }
+ 125   3              }
+ 126   2              else if (TEMPERATURE_STATUS_OVER_HEAT_5MIN == cur_temperature_status) // 检测到温度过热累�
+             -��5min
+ 127   2              {
+ 128   3                  /*
+ 129   3                      标志位，是否真的过热
+ 130   3                      在该语句块内反复对比 检测到的ad值，如果仍过热，将pwm限制为 25%
+ 131   3                  */
+ 132   3                  static bit flag_is_really_over_heat = 0;
+ 133   3      
+ 134   3                  if (ntc_val < _3_1V) // 如果仍过热
+ 135   3                  {
+ 136   4                      flag_is_really_over_heat = 1;
+ 137   4                  }
+ 138   3      
+ 139   3                  if (flag_is_really_over_heat)
+ 140   3                  {
+ 141   4                      max_duty = PWM_DUTY_25_PERCENT;
+ 142   4                  }
+ 143   3              }
+ 144   2      
+ 145   2              if (extemp_tctrl_flag == 1)
+ 146   2              {
+ 147   3                  extemp_tctrl_flag = 0;
+ 148   3              }
+ 149   2          }
+ 150   1      
+ 151   1          is_pwr_down = 1; // 使能缓慢升降功率，给标志位置一
+ 152   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    326    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =      7    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      1    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

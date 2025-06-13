@@ -84,6 +84,7 @@ void lvd_handler(void)
             init_lvd_3v();
         }
     }
+    
     // 如果lvd_flag == 3，进入延时启动5秒
     if(lvd_flag == 3)
     {
@@ -91,8 +92,5 @@ void lvd_handler(void)
         // user_printf("lvd pwr 3V \n");
         dly_pwr_on = 1;
     }
-
-
-
 }
 

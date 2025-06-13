@@ -1,4 +1,4 @@
-C51 COMPILER V9.60.7.0   LVD                                                               11/20/2024 14:32:27 PAGE 1   
+C51 COMPILER V9.60.7.0   LVD                                                               06/13/2025 15:15:03 PAGE 1   
 
 
 C51 COMPILER V9.60.7.0, COMPILATION OF MODULE LVD
@@ -62,7 +62,7 @@ line level    source
   51   1                      lvd_mode = 3;
   52   1      }
   53          
-C51 COMPILER V9.60.7.0   LVD                                                               11/20/2024 14:32:27 PAGE 2   
+C51 COMPILER V9.60.7.0   LVD                                                               06/13/2025 15:15:03 PAGE 2   
 
   54          //上电配置4V,上电后再配置为3V，用于检查电压跌落
   55          void init_lvd_4V(void)
@@ -97,18 +97,16 @@ line level    source
   84   3                  init_lvd_3v();
   85   3              }
   86   2          }
-  87   1          // 如果lvd_flag == 3，进入延时启动5秒
-  88   1          if(lvd_flag == 3)
-  89   1          {
-  90   2      
-  91   2              // user_printf("lvd pwr 3V \n");
-  92   2              dly_pwr_on = 1;
-  93   2          }
-  94   1      
-  95   1      
-  96   1      
-  97   1      }
-  98          
+  87   1          
+  88   1          // 如果lvd_flag == 3，进入延时启动5秒
+  89   1          if(lvd_flag == 3)
+  90   1          {
+  91   2      
+  92   2              // user_printf("lvd pwr 3V \n");
+  93   2              dly_pwr_on = 1;
+  94   2          }
+  95   1      }
+  96          
 
 
 MODULE INFORMATION:   STATIC OVERLAYABLE

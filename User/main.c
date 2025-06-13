@@ -65,6 +65,8 @@ extern u32 pwm_in_duty;
 extern bit dly_pwr_on ;
 extern u8 simple_over;
 extern u16 max_duty;
+
+ 
 void main(void) 
 {
 	
