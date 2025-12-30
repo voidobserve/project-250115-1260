@@ -1,112 +1,112 @@
-C51 COMPILER V9.60.7.0   LVD                                                               06/13/2025 15:15:03 PAGE 1   
+C51 COMPILER V9.60.7.0   LVD                                                               12/30/2025 09:37:04 PAGE 1   
 
 
 C51 COMPILER V9.60.7.0, COMPILATION OF MODULE LVD
-OBJECT MODULE PLACED IN .\Release\Objects\LVD.obj
-COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE ..\..\User\LVD.C LARGE OPTIMIZE(8,SPEED) BROWSE INTVECTOR(0X000C) INCDIR
-                    -(..\..\Libraries\Include;..\..\User) INTERVAL(3) DEBUG OBJECTEXTEND PRINT(.\Release\Listings\LVD.lst) OBJECT(.\Release\O
-                    -bjects\LVD.obj)
+OBJECT MODULE PLACED IN .\Release\Objects\lvd.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE ..\..\User\lvd.c LARGE OPTIMIZE(8,SPEED) BROWSE INTVECTOR(0X000C) INCDIR
+                    -(..\..\Libraries\Include;..\..\User) INTERVAL(3) DEBUG OBJECTEXTEND PRINT(.\Release\Listings\lvd.lst) OBJECT(.\Release\O
+                    -bjects\lvd.obj)
 
 line level    source
 
    1          #include "include.h"
-   2          
-   3          volatile u8 lvd_flag;
-   4          volatile u8 lvd_mode = 0;
-   5          extern bit dly_pwr_on ;
-   6          void LVD_IRQHandler(void) interrupt LVD_IRQn
-   7          {
-   8   1          // 进入中断设置IP，不可删除
-   9   1          __IRQnIPnPush(LVD_IRQn);
-  10   1          
-  11   1          // ---------------- 用户函数处理 -------------------
-  12   1          
-  13   1          if(LVD_CON1 & LVD_VCC_FLAG(0x1)) {         // VCC低电
-  14   2              LVD_CON1 |= LVD_VCC_FLAG(0x1);         // 清除LVD VCC低电标志位
-  15   2              lvd_flag = 1;
-  16   2              // user_printf("lvd pwr 3V \n");
-  17   2              debug_putchar(lvd_mode);
-  18   2          }
-  19   1              if(lvd_mode == 3)
-  20   1              {
-  21   2                  lvd_flag  = 3;
-  22   2                                              dly_pwr_on = 1;
-  23   2                  user_printf("lvd3\n");
-  24   2              }
-  25   1              if(lvd_mode == 4)
-  26   1              {
-  27   2                  lvd_flag  = 4;
-  28   2                  user_printf("lvd4\n");
-  29   2      
-  30   2              }
-  31   1          
-  32   1          // 退出中断设置IP，不可删除
-  33   1          __IRQnIPnPop(LVD_IRQn);
-  34   1      }
-  35          
-  36          
-  37          void init_lvd_3v(void)
-  38          {
-  39   1          __EnableIRQ(LVD_IRQn);                  // 使能LVD中断
-  40   1          IE_EA = 1;                              // 使能总中断
-  41   1          
-  42   1          LVD_CON0 &= ~(LVD_OUTSYS_EN(0x1)   | 
-  43   1                        LVD_VCC_RST_EN(0x1)  |
-  44   1                        LVD_VCC_VPT_SET(0x7) | 
-  45   1                        LVD_VCC_DETE_EN(0x1));
-  46   1          LVD_CON0 |= (LVD_OUTSYS_EN(0x1)   |     // LVD中断和复位功能输出到系统使能
-  47   1                       LVD_VCC_RST_EN(0x0)  |     // VCC低电压中断使能
-  48   1                       LVD_VCC_VPT_SET(0x5) |     // VCCA电源电压低电检测阈值3.7v
-  49   1                       LVD_VCC_DETE_EN(0x1));     // VCC 电源VCC电压低电检测功能使能
-  50   1          LVD_CON1 &= ~LVD_VCC_SYN_DIS(0x0);      // LVD VCC低电检测同步器打开
-  51   1                      lvd_mode = 3;
-  52   1      }
-  53          
-C51 COMPILER V9.60.7.0   LVD                                                               06/13/2025 15:15:03 PAGE 2   
+   2          #include "lvd.h"
+   3          
+   4          extern bit dly_pwr_on;
+   5          
+   6          volatile u8 lvd_flag;
+   7          volatile u8 lvd_mode = 0;
+   8          
+   9          void LVD_IRQHandler(void) interrupt LVD_IRQn
+  10          {
+  11   1          // 进入中断设置IP，不可删除
+  12   1          __IRQnIPnPush(LVD_IRQn);
+  13   1      
+  14   1          // ---------------- 用户函数处理 -------------------
+  15   1      
+  16   1          if (LVD_CON1 & LVD_VCC_FLAG(0x1))
+  17   1          {                                  // VCC低电
+  18   2              LVD_CON1 |= LVD_VCC_FLAG(0x1); // 清除LVD VCC低电标志位
+  19   2              lvd_flag = 1;
+  20   2              // user_printf("lvd pwr 3V \n");
+  21   2              debug_putchar(lvd_mode);
+  22   2          }
+  23   1          if (lvd_mode == 3)
+  24   1          {
+  25   2              lvd_flag = 3;
+  26   2              dly_pwr_on = 1;
+  27   2              user_printf("lvd3\n");
+  28   2          }
+  29   1          if (lvd_mode == 4)
+  30   1          {
+  31   2              lvd_flag = 4;
+  32   2              user_printf("lvd4\n");
+  33   2          }
+  34   1      
+  35   1          // 退出中断设置IP，不可删除
+  36   1          __IRQnIPnPop(LVD_IRQn);
+  37   1      }
+  38          
+  39          void init_lvd_3v(void)
+  40          {
+  41   1          __EnableIRQ(LVD_IRQn); // 使能LVD中断
+  42   1          IE_EA = 1;             // 使能总中断
+  43   1      
+  44   1          LVD_CON0 &= ~(LVD_OUTSYS_EN(0x1) |
+  45   1                        LVD_VCC_RST_EN(0x1) |
+  46   1                        LVD_VCC_VPT_SET(0x7) |
+  47   1                        LVD_VCC_DETE_EN(0x1));
+  48   1          LVD_CON0 |= (LVD_OUTSYS_EN(0x1) |   // LVD中断和复位功能输出到系统使能
+  49   1                       LVD_VCC_RST_EN(0x0) |  // VCC低电压中断使能
+  50   1                       LVD_VCC_VPT_SET(0x5) | // VCCA电源电压低电检测阈值3.7v
+  51   1                       LVD_VCC_DETE_EN(0x1)); // VCC 电源VCC电压低电检测功能使能
+  52   1          LVD_CON1 &= ~LVD_VCC_SYN_DIS(0x0);  // LVD VCC低电检测同步器打开
+  53   1          lvd_mode = 3;
+C51 COMPILER V9.60.7.0   LVD                                                               12/30/2025 09:37:04 PAGE 2   
 
-  54          //上电配置4V,上电后再配置为3V，用于检查电压跌落
-  55          void init_lvd_4V(void)
-  56          {
-  57   1              __EnableIRQ(LVD_IRQn);                  // 使能LVD中断
-  58   1          IE_EA = 1;                              // 使能总中断
-  59   1          
-  60   1          LVD_CON0 &= ~(LVD_OUTSYS_EN(0x1)   | 
-  61   1                        LVD_VCC_RST_EN(0x1)  |
-  62   1                        LVD_VCC_VPT_SET(0x7) | 
-  63   1                        LVD_VCC_DETE_EN(0x1));
-  64   1          LVD_CON0 |= (LVD_OUTSYS_EN(0x1)   |     // LVD中断和复位功能输出到系统使能
-  65   1                       LVD_VCC_RST_EN(0x0)  |     // VCC低电压中断使能
-  66   1                       LVD_VCC_VPT_SET(0x7) |     // VCCA电源电压低电检测阈值4.3v
-  67   1                       LVD_VCC_DETE_EN(0x1));     // VCC 电源VCC电压低电检测功能使能
-  68   1          LVD_CON1 &= ~LVD_VCC_SYN_DIS(0x0);      // LVD VCC低电检测同步器打开
-  69   1                      lvd_mode = 4;
-  70   1      }
-  71          
-  72          
-  73          extern u8 dly_pwr_on_cnt;
-  74          void lvd_handler(void)
-  75          {
-  76   1          if(lvd_flag == 4)
-  77   1          {
-  78   2              lvd_flag = 0;
-  79   2              delay_ms(10); //消抖动，上电过程会触发多次
-  80   2              if(lvd_flag == 0)
-  81   2              {
-  82   3                  user_printf("lvd pwr on \n");
-  83   3                  // 初始化所有参数
-  84   3                  init_lvd_3v();
-  85   3              }
-  86   2          }
-  87   1          
-  88   1          // 如果lvd_flag == 3，进入延时启动5秒
-  89   1          if(lvd_flag == 3)
-  90   1          {
-  91   2      
-  92   2              // user_printf("lvd pwr 3V \n");
-  93   2              dly_pwr_on = 1;
-  94   2          }
-  95   1      }
-  96          
+  54   1      }
+  55          
+  56          // 上电配置4V,上电后再配置为3V，用于检查电压跌落
+  57          void init_lvd_4V(void)
+  58          {
+  59   1          __EnableIRQ(LVD_IRQn); // 使能LVD中断
+  60   1          IE_EA = 1;             // 使能总中断
+  61   1      
+  62   1          LVD_CON0 &= ~(LVD_OUTSYS_EN(0x1) |
+  63   1                        LVD_VCC_RST_EN(0x1) |
+  64   1                        LVD_VCC_VPT_SET(0x7) |
+  65   1                        LVD_VCC_DETE_EN(0x1));
+  66   1          LVD_CON0 |= (LVD_OUTSYS_EN(0x1) |   // LVD中断和复位功能输出到系统使能
+  67   1                       LVD_VCC_RST_EN(0x0) |  // VCC低电压中断使能
+  68   1                       LVD_VCC_VPT_SET(0x7) | // VCCA电源电压低电检测阈值4.3v
+  69   1                       LVD_VCC_DETE_EN(0x1)); // VCC 电源VCC电压低电检测功能使能
+  70   1          LVD_CON1 &= ~LVD_VCC_SYN_DIS(0x0);  // LVD VCC低电检测同步器打开
+  71   1          lvd_mode = 4;
+  72   1      }
+  73          
+  74          extern u8 dly_pwr_on_cnt;
+  75          void lvd_handler(void)
+  76          {
+  77   1          if (lvd_flag == 4)
+  78   1          {
+  79   2              lvd_flag = 0;
+  80   2              delay_ms(10); // 消抖动，上电过程会触发多次
+  81   2              if (lvd_flag == 0)
+  82   2              {
+  83   3                  user_printf("lvd pwr on \n");
+  84   3                  // 初始化所有参数
+  85   3                  init_lvd_3v();
+  86   3              }
+  87   2          }
+  88   1      
+  89   1          // 如果lvd_flag == 3，进入延时启动5秒
+  90   1          if (lvd_flag == 3)
+  91   1          {
+  92   2      
+  93   2              // user_printf("lvd pwr 3V \n");
+  94   2              dly_pwr_on = 1;
+  95   2          }
+  96   1      }
 
 
 MODULE INFORMATION:   STATIC OVERLAYABLE

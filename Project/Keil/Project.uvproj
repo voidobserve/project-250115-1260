@@ -417,11 +417,6 @@
               <FilePath>..\..\User\led_ctrl.c</FilePath>
             </File>
             <File>
-              <FileName>LVD.C</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\User\LVD.C</FilePath>
-            </File>
-            <File>
               <FileName>adc.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\User\adc.c</FilePath>
@@ -430,6 +425,11 @@
               <FileName>temperature_adjust.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\User\temperature_adjust.c</FilePath>
+            </File>
+            <File>
+              <FileName>lvd.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\User\lvd.c</FilePath>
             </File>
           </Files>
         </Group>

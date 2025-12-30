@@ -5,12 +5,16 @@
 
 #include "user_config.h"
 
+#include "led_ctrl.h"
+#include "adc.h"
+
+
+
 
 
 extern void pwm_in_handler(void);
-extern u16 ntc_val;
-extern u16 adc0_val;
-extern u16 adc1_val;
+
+
 
 
 bit ex_temp_en; // 过温降功率标志位
@@ -112,7 +116,7 @@ extern void led_plus(void);
 extern void led_sub(void);
 extern void cal_pwm_in_duty(void);
 
-extern u16 adjust_val; // 电位器的ADC值 0~3686---->60%~100%---->3600~6000
+
 u16 ajust_duty;
 // 20档电位器调节pwm   60%-62%-64%-66%- 68%-70%-72%-74%-76%6-7896-80%--82. 5%-85%-87.5%-90%-92%-94%-96%-98%-100%
 // 修改为40档电位器调节 pwm

@@ -1,13 +1,15 @@
- 
+#include <stdio.h>
+#include <math.h>
 
 #include "include.h"
-#include <stdio.h>
 #include "main.h"
-#include <math.h>
+
+
+
 /** @addtogroup Template_Project
-  * @{
-  */ 
-   
+ * @{
+ */
+
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
 /* Private macro -------------------------------------------------------------*/
@@ -36,18 +38,16 @@ char putchar(char c)
     return c;
 }
 
-
- 
 /**
-  * @brief  Main program.
-  * @param  None
-  * @retval None
-  */
+ * @brief  Main program.
+ * @param  None
+ * @retval None
+ */
 extern void timer4_cap_init(void);
 extern void timer0_init();
 extern void get_duty(void);
 extern void pwm_init(void);
-extern void option_fun(void); 
+extern void option_fun(void);
 extern void init_lvd_4V(void);
 extern void init_lvd_3v(void);
 
@@ -62,70 +62,65 @@ extern u16 adc1_val;
 extern void adjust_pwm();
 extern u16 max_duty;
 extern u32 pwm_in_duty;
-extern bit dly_pwr_on ;
+extern bit dly_pwr_on;
 extern u8 simple_over;
 extern u16 max_duty;
 
- 
-void main(void) 
+void main(void)
 {
-	
-	system_init();
-  
 
-		
-//  P1_MD1   &= ~GPIO_P15_MODE_SEL(0x03);
-//  P1_MD1   |=  GPIO_P15_MODE_SEL(0x01);
-//	P1_PU |= GPIO_P15_PULL_UP(1);
-//	P15 = 1;
+    system_init();
 
-//  P1_MD1   &= ~GPIO_P16_MODE_SEL(0x03);
-//  P1_MD1   |=  GPIO_P16_MODE_SEL(0x01);
-//	P1_PU |= GPIO_P16_PULL_UP(1);
-//  P16 = 1;
-//		while(1) 
-//    {
-//      WDT_KEY = WDT_KEY_VAL(0xAA);        // 喂狗并清除 wdt_pending
-//		}
+    //  P1_MD1   &= ~GPIO_P15_MODE_SEL(0x03);
+    //  P1_MD1   |=  GPIO_P15_MODE_SEL(0x01);
+    //	P1_PU |= GPIO_P15_PULL_UP(1);
+    //	P15 = 1;
 
-//	delay_ms(5);
-	#if 1
-    // 看门狗默认打开, 复位时间2s 
+    //  P1_MD1   &= ~GPIO_P16_MODE_SEL(0x03);
+    //  P1_MD1   |=  GPIO_P16_MODE_SEL(0x01);
+    //	P1_PU |= GPIO_P16_PULL_UP(1);
+    //  P16 = 1;
+    //		while(1)
+    //    {
+    //      WDT_KEY = WDT_KEY_VAL(0xAA);        // 喂狗并清除 wdt_pending
+    //		}
+
+    //	delay_ms(5);
+#if 1
+    // 看门狗默认打开, 复位时间2s
     //    WDT_KEY = WDT_KEY_VAL(0xDD);               //  关闭看门狗 (如需配置看门狗请查看“WDT\WDT_Reset”示例)
     led_state = LED_PWR_ON;
-    
+
     delay_ms(10);
     // 初始化打印
     debug_init();
     user_printf("TX8C126x_SDK main start\n");
     timer4_cap_init();
-	
-    __SetIRQnIP(TMR4_IRQn, TMR4_IQn_CFG);  
-		__SetIRQnIP(STMR0_IRQn, STMR0_IQn_CFG);  
-		
+
+    __SetIRQnIP(TMR4_IRQn, TMR4_IQn_CFG);
+    __SetIRQnIP(STMR0_IRQn, STMR0_IQn_CFG);
+
     timer0_init();
     pwm_init();
     adc_init();
-		adc_val();//初始化时运行一次，用于标志位判断
-    option_fun(); 
-		 printf("adc0_val = %d  adc1_val = %d \r\n ", adc0_val,adc1_val);		  
-    init_lvd_3v(); 
-    while(1) 
+    adc_val(); // 初始化时运行一次，用于标志位判断
+    option_fun();
+    printf("adc0_val = %d  adc1_val = %d \r\n ", adc0_val, adc1_val);
+    init_lvd_3v();
+    while (1)
     {
-      WDT_KEY = WDT_KEY_VAL(0xAA);        // 喂狗并清除 wdt_pending
-      get_duty(); 
-      lvd_handler();
-			//adc_val();//adc值
-			adjust_pwm();//电位器值
-			//dly_pwr_on =1;
-				
+        WDT_KEY = WDT_KEY_VAL(0xAA); // 喂狗并清除 wdt_pending
+        get_duty();
+        lvd_handler();
+        // adc_val();//adc值
+        adjust_pwm(); // 电位器值
+        // dly_pwr_on =1;
     }
-		#endif
+#endif
 }
 
 /**
-  * @}
-  */
+ * @}
+ */
 
 /*************************** (C) COPYRIGHT 2021 HUGE-IC ***** END OF FILE *****/
-

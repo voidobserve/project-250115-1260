@@ -1,5 +1,8 @@
 {
     "files.associations": {
-        "LVD.C": "c"
+        "LVD.C": "c",
+        "include.h": "c",
+        "adc.h": "c",
+        "temperature_adjust.h": "c"
     }
 }

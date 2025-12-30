@@ -1,4 +1,4 @@
-C51 COMPILER V9.60.7.0   ADC                                                               06/13/2025 15:15:03 PAGE 1   
+C51 COMPILER V9.60.7.0   ADC                                                               12/30/2025 09:37:04 PAGE 1   
 
 
 C51 COMPILER V9.60.7.0, COMPILATION OF MODULE ADC
@@ -62,7 +62,7 @@ line level    source
   51          /**
   52           * @brief 获取一次adc采集+滤波后的值
   53           *
-C51 COMPILER V9.60.7.0   ADC                                                               06/13/2025 15:15:03 PAGE 2   
+C51 COMPILER V9.60.7.0   ADC                                                               12/30/2025 09:37:04 PAGE 2   
 
   54           * @param adc_channel_x  ADC_CHANNEL_0  或者 是 ADC_CHANNEL_1
   55           * @return u16
@@ -126,7 +126,7 @@ line level    source
  113   1          ADC_STA = ADC_CHAN1_DONE(0x1);                    // 清除ADC1转换完成标志位
  114   1          adc1_val = (ADC_DATAH1 << 4) | (ADC_DATAL1 >> 4); // 读取channel1的值
  115   1      
-C51 COMPILER V9.60.7.0   ADC                                                               06/13/2025 15:15:03 PAGE 3   
+C51 COMPILER V9.60.7.0   ADC                                                               12/30/2025 09:37:04 PAGE 3   
 
  116   1          // ntc_val_all += adc0_val;
  117   1          adjust_val_all += adc1_val;
@@ -190,7 +190,7 @@ MODULE INFORMATION:   STATIC OVERLAYABLE
    DATA SIZE        =   ----    ----
    IDATA SIZE       =   ----    ----
    BIT SIZE         =      1    ----
-C51 COMPILER V9.60.7.0   ADC                                                               06/13/2025 15:15:03 PAGE 4   
+C51 COMPILER V9.60.7.0   ADC                                                               12/30/2025 09:37:04 PAGE 4   
 
 END OF MODULE INFORMATION.
 

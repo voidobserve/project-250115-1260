@@ -1,4 +1,4 @@
-C51 COMPILER V9.60.7.0   TEMPERATURE_ADJUST                                                06/13/2025 15:15:03 PAGE 1   
+C51 COMPILER V9.60.7.0   TEMPERATURE_ADJUST                                                12/30/2025 09:37:04 PAGE 1   
 
 
 C51 COMPILER V9.60.7.0, COMPILATION OF MODULE TEMPERATURE_ADJUST
@@ -62,7 +62,7 @@ line level    source
   48   2              // 如果温度以及过热，不使用该变量
   49   2              __sec_cnt = 0;
   50   2          }
-C51 COMPILER V9.60.7.0   TEMPERATURE_ADJUST                                                06/13/2025 15:15:03 PAGE 2   
+C51 COMPILER V9.60.7.0   TEMPERATURE_ADJUST                                                12/30/2025 09:37:04 PAGE 2   
 
   51   1      
   52   1          // 如果使能了温度检测功能 并且 时控功能 未使能
@@ -126,7 +126,7 @@ line level    source
  110   6                          }
  111   5                      } // 如果之前检测到温度过热，并且半个小时的扫描周期到来
  112   4                  }
-C51 COMPILER V9.60.7.0   TEMPERATURE_ADJUST                                                06/13/2025 15:15:03 PAGE 3   
+C51 COMPILER V9.60.7.0   TEMPERATURE_ADJUST                                                12/30/2025 09:37:04 PAGE 3   
 
  113   3              }
  114   2              else if (TEMPERATURE_STATUS_OVER_HEAT_0MIN == cur_temperature_status) // 检测到温度过热一�
