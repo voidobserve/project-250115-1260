@@ -503,22 +503,22 @@ void cal_pwm_in_duty(void)
 // 对比当前的duty是否发生变化
 void cmp_duty(void)
 {
-    if (led_state == LED_PWR_ON)
+    if (led_state == LED_STATE_POWER_ON)
         return;
 
     if (pwm_in_duty > 10) {
         if ((pwm_in_duty - 10) > c_duty) {
-            led_state = LED_ADJ_P;
+            led_state = LED_STATE_INCREASE;
         }
         if ((pwm_in_duty + 10) < c_duty) {
-            led_state = LED_ADJ_S;
+            led_state = LED_STATE_DECREASE;
         }
     } else {
         if (pwm_in_duty > c_duty) {
-            led_state = LED_ADJ_P;
+            led_state = LED_STATE_INCREASE;
         }
         if (pwm_in_duty < c_duty) {
-            led_state = LED_ADJ_S;
+            led_state = LED_STATE_DECREASE;
         }
     }
 }
@@ -539,7 +539,7 @@ u16 rus_duty; // 放大60倍
 // 1ms调用一次     LIN 改 加入电位器判断
 void led_pwr_on(void)
 {
-    if (led_state == LED_PWR_ON && simple_over == 1) {
+    if (led_state == LED_STATE_POWER_ON && simple_over == 1) {
         // 没有电位器时
         // 没有三合一功能，上电默认最大占空比
         //  有三合一功能，按采用的占空比调光
@@ -560,7 +560,7 @@ void led_pwr_on(void)
             }
             if (c_duty >= pwm_in_duty) {
                 c_duty = pwm_in_duty;
-                led_state = LED_NULL;
+                led_state = LED_STATE_IDLE;
             }
             set_pwm_duty();
         }
@@ -586,7 +586,7 @@ void led_pwr_on(void)
                 }
                 if (c_duty >= pwm_in_duty) {
                     c_duty = pwm_in_duty;
-                    led_state = LED_NULL;
+                    led_state = LED_STATE_IDLE;
                 }
                 set_pwm_duty();
             }
@@ -597,7 +597,7 @@ void led_pwr_on(void)
 
 void led_plus(void)
 {
-    if (led_state != LED_ADJ_P)
+    if (led_state != LED_STATE_INCREASE)
         return;
     if (c_duty < pwm_in_duty) {
         if (is_pwr_down) // 缓慢升降
@@ -608,7 +608,7 @@ void led_plus(void)
 
     if (c_duty >= pwm_in_duty) {
         c_duty = pwm_in_duty;
-        led_state = LED_NULL;
+        led_state = LED_STATE_IDLE;
         gamma = c_duty;
         is_pwr_down = 0; // 完成缓慢升降
     }
@@ -617,7 +617,7 @@ void led_plus(void)
 
 void led_sub(void)
 {
-    if (led_state != LED_ADJ_S)
+    if (led_state != LED_STATE_DECREASE)
         return;
 
     if (c_duty > pwm_in_duty) {
@@ -636,7 +636,7 @@ void led_sub(void)
         c_duty = pwm_in_duty;
         gamma = c_duty;
         is_pwr_down = 0; // 完成缓慢升降
-        led_state = LED_NULL;
+        led_state = LED_STATE_IDLE;
     }
     set_pwm_duty();
 }
@@ -977,7 +977,7 @@ void dly_pwr_on_handler(void)
             gamma = 2;
             option_fun();
 
-            led_state = LED_PWR_ON;
+            led_state = LED_STATE_POWER_ON;
             printf("LED_PWR_ON");
         }
     }

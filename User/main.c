@@ -13,7 +13,7 @@
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
 
-LED_S led_state;
+LedState led_state;
 /* Private function prototypes -----------------------------------------------*/
 /* Private functions ---------------------------------------------------------*/
 
@@ -67,26 +67,10 @@ void main(void)
 {
 
     system_init();
-
-    //  P1_MD1   &= ~GPIO_P15_MODE_SEL(0x03);
-    //  P1_MD1   |=  GPIO_P15_MODE_SEL(0x01);
-    //	P1_PU |= GPIO_P15_PULL_UP(1);
-    //	P15 = 1;
-
-    //  P1_MD1   &= ~GPIO_P16_MODE_SEL(0x03);
-    //  P1_MD1   |=  GPIO_P16_MODE_SEL(0x01);
-    //	P1_PU |= GPIO_P16_PULL_UP(1);
-    //  P16 = 1;
-    //		while(1)
-    //    {
-    //      WDT_KEY = WDT_KEY_VAL(0xAA);        // 喂狗并清除 wdt_pending
-    //		}
-
-    //	delay_ms(5);
 #if 1
     // 看门狗默认打开, 复位时间2s
     //    WDT_KEY = WDT_KEY_VAL(0xDD);               //  关闭看门狗 (如需配置看门狗请查看“WDT\WDT_Reset”示例)
-    led_state = LED_PWR_ON;
+    led_state = LED_STATE_POWER_ON;
 
     delay_ms(10);
     // 初始化打印
