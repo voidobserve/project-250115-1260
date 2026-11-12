@@ -16,15 +16,15 @@ extern u16 adc1_val;
 #define _50_DUTY 3000
 #define _30_DUTY 1800
 
-#define _75_TEMP 2420              // 75摄氏度对应的ADC值
-#define _3_1V 3000                 // 3.4V对应的ADC值
-#define L_PWR_T (1 * 60 * 60)      // 降功率
+#define _75_TEMP     2420          // 75摄氏度对应的ADC值
+#define _3_1V        3000          // 3.4V对应的ADC值
+#define L_PWR_T      (1 * 60 * 60) // 降功率
 #define L_TEMP_PWR_T (1 * 30 * 60) // 过温半小时降功率
 // #define LEVLE_PER 184              // 每个档位对应的AD值 （20级挡位调节）
 // #define LEVLE_PER 92 // 每个档位对应的AD值 (40级挡位调节)
-#define LEVLE_PER 23 // 每个档位对应的AD值 (160级挡位调节)
+#define LEVLE_PER   23  // 每个档位对应的AD值 (160级挡位调节)
 #define ADJUST_STEP 160 // 调节级数，例如 20级、40级、160级
-#define DEAD_ZONE 5    // adc死区范围± 5
+#define DEAD_ZONE   5   // adc死区范围± 5
 
 bit ex_temp_en; // 过温降功率标志位
 // #define L_PWR_T     (1*10)
@@ -86,28 +86,23 @@ typedef struct
     u8 t;  // 当前亮度保持时间,255时控结束
 } t_ctrl_list_t;
 
-t_ctrl_list_t t_ctrl_lis_0[3] =
-    {
-        {MAX_DUTY, 6}, {_50_DUTY, 6}, {0, 255} // 6 6
+t_ctrl_list_t t_ctrl_lis_0[3] = {
+    {MAX_DUTY, 6}, {_50_DUTY, 6}, {0, 255} // 6 6
 };
 
-t_ctrl_list_t code t_ctrl_lis_1[3] =
-    {
-        {MAX_DUTY, 4}, {_50_DUTY, 8}, {0, 255}};
+t_ctrl_list_t code t_ctrl_lis_1[3] = {{MAX_DUTY, 4}, {_50_DUTY, 8}, {0, 255}};
 
-t_ctrl_list_t code t_ctrl_lis_2[4] =
-    {
-        {MAX_DUTY, 5}, {_70_DUTY, 3}, {_50_DUTY, 4}, {0, 255} // 534
+t_ctrl_list_t code t_ctrl_lis_2[4] = {
+    {MAX_DUTY, 5}, {_70_DUTY, 3}, {_50_DUTY, 4}, {0, 255} // 534
 };
 
-t_ctrl_list_t code t_ctrl_lis_3[4] =
-    {
-        {MAX_DUTY, 4}, {_70_DUTY, 4}, {_50_DUTY, 4}, {0, 255} // 444
+t_ctrl_list_t code t_ctrl_lis_3[4] = {
+    {MAX_DUTY, 4}, {_70_DUTY, 4}, {_50_DUTY, 4}, {0, 255} // 444
 };
 
-t_ctrl_list_t code t_ctrl_lis_4[6] =
-    {
-        {MAX_DUTY, 4}, {_60_DUTY, 2}, {_30_DUTY, 3}, {_60_DUTY, 2}, {MAX_DUTY, 1}, {0, 255} // 42321
+t_ctrl_list_t code t_ctrl_lis_4[6] = {
+    {MAX_DUTY, 4}, {_60_DUTY, 2}, {_30_DUTY, 3},
+    {_60_DUTY, 2}, {MAX_DUTY, 1}, {0, 255} // 42321
 };
 
 t_ctrl_list_t *p_list;
@@ -130,8 +125,7 @@ void adjust_pwm()
     static u16 last_level = 0xFF;           // 记录之前的挡位
     u16 cur_level = adjust_val / LEVLE_PER; // 计算当前挡位
 
-    if (adjust_en == 1)
-    {
+    if (adjust_en == 1) {
 #if 0 // 20级挡位调节：
         if (adjust_val > 3680) // 4.5V对应的AD值
         {
@@ -241,8 +235,7 @@ void adjust_pwm()
             return;
         }
 
-        if (last_level == cur_level)
-        {
+        if (last_level == cur_level) {
             // 之前的挡位和当前计算得出的挡位一样，不调节
             return;
         }
@@ -327,62 +320,56 @@ bit extemp_tctrl_flag = 0;
 void ex_temp_adjust_timer() // 过温降功率 定时判断 每秒执行一次
 {
     // printf("ntc_val=%d  ex_temp_cnt=%d   ex_temp_t=%d  \r\n",(int)pwm_in_duty,(int)c_duty,(int)ex_temp_t);
-    if (ex_temp_en == 1 && t_ctrl.en == 0)
-    {
+    if (ex_temp_en == 1 && t_ctrl.en == 0) {
         // ntc_val=adjust_val;
-        if (extemp_tctrl_flag == 1)
-        {
+        if (extemp_tctrl_flag == 1) {
             pwm_save[0] = max_duty;
             ex_temp_cnt = 0;
             extemp_tctrl_flag = 0;
         }
-        if (ntc_val < _3_1V && ex_temp_state == 1) // 半小时处理一次 AD值越小 温度越高
+        if (ntc_val < _3_1V &&
+            ex_temp_state == 1) // 半小时处理一次 AD值越小 温度越高
         {
             pwm_save[ex_temp_cnt] = pwm_in_duty; // 用数组存住第一个值
 
-            ex_duty = pwm_save[0] - (pwm_save[0] / 10 * (ex_temp_cnt + 1)); // 第一次降到90%，之后每次将10%
-            ex_temp_state = 0;                                              // 处理完成 半小时后再开启
+            ex_duty = pwm_save[0] -
+                      (pwm_save[0] / 10 *
+                       (ex_temp_cnt + 1)); // 第一次降到90%，之后每次将10%
+            ex_temp_state = 0;             // 处理完成 半小时后再开启
             ex_temp_t = 0;
 
             max_duty = ex_duty;
             ex_temp_cnt++;
-            if (ex_temp_cnt > 9)
-            {
+            if (ex_temp_cnt > 9) {
                 max_duty = 0;
             }
             extemp_flag = 1;
         }
-        if (ntc_val > _3_1V) // 温度降下来后 不干预最大值 并且计数置0 下次过温再从90%开始
+        if (ntc_val >
+            _3_1V) // 温度降下来后 不干预最大值 并且计数置0 下次过温再从90%开始
         {
             ex_temp_cnt = 0;
-            if (extemp_flag == 1 && ex_temp_state == 1)
-            {
-                if (extemp_tctrl_flag == 0)
-                {
-                    if (adjust_en == 1)
-                    {
+            if (extemp_flag == 1 && ex_temp_state == 1) {
+                if (extemp_tctrl_flag == 0) {
+                    if (adjust_en == 1) {
                         if (_3_1.en == 1)
                             max_duty = pwm_in_duty_xuwei;
                         else
                             max_duty = ajust_duty;
                     }
-                    if (adjust_en == 0)
-                    {
+                    if (adjust_en == 0) {
                         if (_3_1.en == 1)
                             max_duty = ex_pwm_in_duty;
                         else
                             max_duty = pwm_save[0];
                     }
-                    if (P00 == 0)
-                    {
-                        if (max_duty > ex_max_duty)
-                        {
+                    if (P00 == 0) {
+                        if (max_duty > ex_max_duty) {
                             max_duty = ex_max_duty;
                         }
                     }
                 }
-                if (extemp_tctrl_flag == 1)
-                {
+                if (extemp_tctrl_flag == 1) {
                     extemp_tctrl_flag = 0;
                     extemp_flag = 0;
                     ex_temp_cnt = 0;
@@ -391,8 +378,7 @@ void ex_temp_adjust_timer() // 过温降功率 定时判断 每秒执行一次
             }
         }
         ex_temp_t++;
-        if (ex_temp_t == L_TEMP_PWR_T)
-        {
+        if (ex_temp_t == L_TEMP_PWR_T) {
             ex_temp_t = 0; // 半小时计数清零
             ex_temp_state = 1;
             // extemp_flag=0;
@@ -431,8 +417,7 @@ void set_pwm_duty(void)
 u8 adjust_ms = 0;
 void cap_timer(void)
 {
-    if (cap_10ms_cnt < 10)
-    {
+    if (cap_10ms_cnt < 10) {
         cap_10ms_cnt++;
     }
     pwr_on_cnt++;
@@ -449,8 +434,7 @@ u8 simple_over = 0;
 void get_duty(void)
 {
     // 10ms获取一次
-    if (cap_10ms_cnt >= 10)
-    {
+    if (cap_10ms_cnt >= 10) {
         cap_10ms_cnt = 0;
         if (_3_1.en == 1) // 三合一功能开启才调光
         {
@@ -464,8 +448,7 @@ void get_duty(void)
         cmp_duty();
     }
 
-    if (adjust_ms == 3)
-    {
+    if (adjust_ms == 3) {
         adjust_ms = 0;
         led_plus();
         led_sub();
@@ -478,20 +461,15 @@ void get_duty(void)
 void cal_pwm_in_duty(void)
 {
     u8 i;
-    if (cap1_val == 0 && cap0_val == 0)
-    {
-        if (P14 == 0)
-        {
+    if (cap1_val == 0 && cap0_val == 0) {
+        if (P14 == 0) {
             // 占空比 0
             pwm_in_duty = 0;
         }
-        if (P14 == 1)
-        {
+        if (P14 == 1) {
             pwm_in_duty = 6000;
         }
-    }
-    else
-    {
+    } else {
         pwm_in_duty = (u32)MAX_DUTY * (cap1_val + 1);
         pwm_in_duty = pwm_in_duty / (cap0_val + 1);
     }
@@ -500,16 +478,13 @@ void cal_pwm_in_duty(void)
     cap0_val = 0;
     duty_buff[duty_cnt] = pwm_in_duty;
     duty_cnt++;
-    if (duty_cnt == 5)
-    {
+    if (duty_cnt == 5) {
         simple_over = 1;
         duty_cnt = 0;
     }
-    if (simple_over == 1)
-    {
+    if (simple_over == 1) {
         pwm_in_duty = 0;
-        for (i = 0; i < 5; i++)
-        {
+        for (i = 0; i < 5; i++) {
             pwm_in_duty += duty_buff[i];
         }
         // 求平均
@@ -518,8 +493,7 @@ void cal_pwm_in_duty(void)
     // printf("3_1_pwm_in_duty= %d    c_duty=%d\r\n",(int)pwm_in_duty,(int)c_duty);
     // pwm_in_duty=5000;
 
-    if (adjust_en == 1)
-    {
+    if (adjust_en == 1) {
         pwm_in_duty_xuwei = pwm_in_duty * ajust_duty / 6000;
         pwm_in_duty = pwm_in_duty_xuwei;
     }
@@ -532,25 +506,18 @@ void cmp_duty(void)
     if (led_state == LED_PWR_ON)
         return;
 
-    if (pwm_in_duty > 10)
-    {
-        if ((pwm_in_duty - 10) > c_duty)
-        {
+    if (pwm_in_duty > 10) {
+        if ((pwm_in_duty - 10) > c_duty) {
             led_state = LED_ADJ_P;
         }
-        if ((pwm_in_duty + 10) < c_duty)
-        {
+        if ((pwm_in_duty + 10) < c_duty) {
             led_state = LED_ADJ_S;
         }
-    }
-    else
-    {
-        if (pwm_in_duty > c_duty)
-        {
+    } else {
+        if (pwm_in_duty > c_duty) {
             led_state = LED_ADJ_P;
         }
-        if (pwm_in_duty < c_duty)
-        {
+        if (pwm_in_duty < c_duty) {
             led_state = LED_ADJ_S;
         }
     }
@@ -572,15 +539,12 @@ u16 rus_duty; // 放大60倍
 // 1ms调用一次     LIN 改 加入电位器判断
 void led_pwr_on(void)
 {
-    if (led_state == LED_PWR_ON && simple_over == 1)
-    {
+    if (led_state == LED_PWR_ON && simple_over == 1) {
         // 没有电位器时
         // 没有三合一功能，上电默认最大占空比
         //  有三合一功能，按采用的占空比调光
-        if (adjust_en == 0)
-        {
-            if (_3_1.en == 0)
-            {
+        if (adjust_en == 0) {
+            if (_3_1.en == 0) {
                 pwm_in_duty = max_duty;
             }
             r_ms = step / 12;
@@ -589,14 +553,12 @@ void led_pwr_on(void)
             if (pwr_on_cnt < r_ms)
                 return; // 时间未到不调整
             pwr_on_cnt = 0;
-            if (c_duty < pwm_in_duty)
-            {
+            if (c_duty < pwm_in_duty) {
                 mi = (step - 1) / (253 / 3) - 1;
                 step += 0.5;
                 c_duty = pow(5, mi) * 60;
             }
-            if (c_duty >= pwm_in_duty)
-            {
+            if (c_duty >= pwm_in_duty) {
                 c_duty = pwm_in_duty;
                 led_state = LED_NULL;
             }
@@ -604,12 +566,10 @@ void led_pwr_on(void)
         }
         if (adjust_en == 1) // 有没有三合一功能，上电都默认电位器的最大占空比
         {
-            if (_3_1.en == 0)
-            {
+            if (_3_1.en == 0) {
                 pwm_in_duty = ajust_duty;
             }
-            if (_3_1.en == 1)
-            {
+            if (_3_1.en == 1) {
                 pwm_in_duty = pwm_in_duty_xuwei;
             }
             {
@@ -619,14 +579,12 @@ void led_pwr_on(void)
                 if (pwr_on_cnt < r_ms)
                     return; // 时间未到不调整
                 pwr_on_cnt = 0;
-                if (c_duty < pwm_in_duty)
-                {
+                if (c_duty < pwm_in_duty) {
                     mi = (step - 1) / (253 / 3) - 1;
                     step += 0.5;
                     c_duty = pow(5, mi) * 60;
                 }
-                if (c_duty >= pwm_in_duty)
-                {
+                if (c_duty >= pwm_in_duty) {
                     c_duty = pwm_in_duty;
                     led_state = LED_NULL;
                 }
@@ -641,16 +599,14 @@ void led_plus(void)
 {
     if (led_state != LED_ADJ_P)
         return;
-    if (c_duty < pwm_in_duty)
-    {
+    if (c_duty < pwm_in_duty) {
         if (is_pwr_down) // 缓慢升降
             c_duty += 1;
         else
             c_duty += 10;
     }
 
-    if (c_duty >= pwm_in_duty)
-    {
+    if (c_duty >= pwm_in_duty) {
         c_duty = pwm_in_duty;
         led_state = LED_NULL;
         gamma = c_duty;
@@ -664,25 +620,19 @@ void led_sub(void)
     if (led_state != LED_ADJ_S)
         return;
 
-    if (c_duty > pwm_in_duty)
-    {
+    if (c_duty > pwm_in_duty) {
         if (is_pwr_down)
             c_duty -= 1;
-        else
-        {
-            if (c_duty > 50)
-            {
+        else {
+            if (c_duty > 50) {
 
                 c_duty -= 10;
-            }
-            else
-            {
+            } else {
                 c_duty -= 1;
             }
         }
     }
-    if (c_duty <= pwm_in_duty)
-    {
+    if (c_duty <= pwm_in_duty) {
         c_duty = pwm_in_duty;
         gamma = c_duty;
         is_pwr_down = 0; // 完成缓慢升降
@@ -698,8 +648,8 @@ void led_sub(void)
 // 有没有时空
 #define T_C_R11 P03
 
-#define T_C_R8 P13
-#define T_C_R9 P12
+#define T_C_R8  P13
+#define T_C_R9  P12
 #define T_C_R10 P11
 
 // 降功率、时空、三合一功能
@@ -730,9 +680,7 @@ void option_fun(void)
     {
         l_pwr.en = 1;
         printf("l_pwr.en = 1\r\n");
-    }
-    else
-    {
+    } else {
         l_pwr.en = 0;
         printf("l_pwr.en = 0\r\n");
     }
@@ -740,19 +688,14 @@ void option_fun(void)
     {
         ex_temp_en = 0;
         printf("ex_temp_en = 0\r\n");
-    }
-    else
-    {
+    } else {
         ex_temp_en = 1;
         printf("ex_temp_en = 1\r\n");
     }
-    if (adc1_val > 4000)
-    {
+    if (adc1_val > 4000) {
         adjust_en = 0;
         printf("adjust_en = 0\r\n");
-    }
-    else
-    {
+    } else {
         adjust_en = 1;
         printf("adjust_en = 1\r\n");
     }
@@ -761,9 +704,7 @@ void option_fun(void)
         _3_1.en = 1;
         // simple_over = 1;
         printf("_3_1.en  = 1\r\n");
-    }
-    else
-    {
+    } else {
         _3_1.en = 0;
         simple_over = 1;
         printf("_3_1.en  = 0\r\n");
@@ -774,9 +715,7 @@ void option_fun(void)
     {
         t_ctrl.en = 1;
         printf("t_ctrl.en = 1\r\n");
-    }
-    else
-    {
+    } else {
         t_ctrl.en = 0;
         printf("t_ctrl.en = 0\r\n");
     }
@@ -787,32 +726,23 @@ void option_fun(void)
     // 时控模式3：100%4H 70%4H 50%4H 0%
     // 时控模式4：100%4H 60%2H 30%3H 60%2H 100%1H 0%
 
-    if (T_C_R8 == 1 && T_C_R9 == 1 && T_C_R10 == 1)
-    {
+    if (T_C_R8 == 1 && T_C_R9 == 1 && T_C_R10 == 1) {
         t_ctrl.list = 0;
         p_list = &t_ctrl_lis_0;
         printf("t_ctrl.list = 0 \r\n");
-    }
-    else if (T_C_R8 == 0 && T_C_R9 == 1 && T_C_R10 == 1)
-    {
+    } else if (T_C_R8 == 0 && T_C_R9 == 1 && T_C_R10 == 1) {
         t_ctrl.list = 1;
         p_list = &t_ctrl_lis_1;
         printf("t_ctrl.list = 1\r\n ");
-    }
-    else if (T_C_R8 == 1 && T_C_R9 == 0 && T_C_R10 == 1)
-    {
+    } else if (T_C_R8 == 1 && T_C_R9 == 0 && T_C_R10 == 1) {
         t_ctrl.list = 2;
         p_list = &t_ctrl_lis_2;
         printf("t_ctrl.list = 2\r\n ");
-    }
-    else if (T_C_R8 == 1 && T_C_R9 == 1 && T_C_R10 == 0)
-    {
+    } else if (T_C_R8 == 1 && T_C_R9 == 1 && T_C_R10 == 0) {
         t_ctrl.list = 3;
         p_list = &t_ctrl_lis_3;
         printf("t_ctrl.list = 3\r\n ");
-    }
-    else if (T_C_R8 == 0 && T_C_R9 == 0 && T_C_R10 == 1)
-    {
+    } else if (T_C_R8 == 0 && T_C_R9 == 0 && T_C_R10 == 1) {
         t_ctrl.list = 4;
         p_list = &t_ctrl_lis_4;
         printf("t_ctrl.list = 4\r\n");
@@ -822,30 +752,26 @@ void option_fun(void)
 // 降功率计时处理
 void l_pwr_timer_handler(void)
 {
-    if (l_pwr.en == 1)
-    {
+    if (l_pwr.en == 1) {
         if (l_pwr.t < L_PWR_T) // 小时
         {
             l_pwr.t++;
-        }
-        else
-        {
+        } else {
             extemp_tctrl_flag = 1;
             if (adjust_en == 1) // 电位器使能
             {
                 if (_3_1.en == 1) // 有三合一功能和电位器
                 {
                     // 判断PWM_in占空比大于74
-                    if (pwm_in_duty_xuwei > ajust_duty / 100 * 75) // LIN 改  75%改成电位器的75%
+                    if (pwm_in_duty_xuwei >
+                        ajust_duty / 100 * 75) // LIN 改  75%改成电位器的75%
                     {
                         max_duty = ajust_duty / 100 * 75;
                         l_pwr.act = 1; // 降功率状态
                         l_pwr.en = 0;  // 处理完成，使能降功率
                         is_pwr_down = 1;
                     }
-                }
-                else
-                {
+                } else {
                     max_duty = ajust_duty / 100 * 75;
                     l_pwr.act = 1; // 降功率状态
                     l_pwr.en = 0;  // 处理完成，使能降功率
@@ -858,16 +784,13 @@ void l_pwr_timer_handler(void)
                 if (_3_1.en) // 有三合一功能
                 {
                     // 判断PWM_in占空比大于74
-                    if (pwm_in_duty > _75_DUTY)
-                    {
+                    if (pwm_in_duty > _75_DUTY) {
                         max_duty = _75_DUTY;
                         l_pwr.act = 1; // 降功率状态
                         l_pwr.en = 0;  // 处理完成，使能降功率
                         is_pwr_down = 1;
                     }
-                }
-                else
-                {
+                } else {
                     max_duty = _75_DUTY;
                     l_pwr.act = 1; // 降功率状态
                     l_pwr.en = 0;  // 处理完成，使能降功率
@@ -903,50 +826,36 @@ void pwm_in_handler(void)
         //					pwm_in_duty = max_duty;
         //				}
         //			}
-        if (t_ctrl.en == 0 && adjust_en == 1)
-        {
-            if (_3_1.en == 1)
-            {
+        if (t_ctrl.en == 0 && adjust_en == 1) {
+            if (_3_1.en == 1) {
                 pwm_in_duty = pwm_in_duty_xuwei;
-            }
-            else
-            {
+            } else {
                 pwm_in_duty = ajust_duty;
             }
         }
-        if (l_pwr.act == 1 || t_ctrl.en == 1)
-        {
+        if (l_pwr.act == 1 || t_ctrl.en == 1) {
             // 进入降功率模式
 
-            if (adjust_en == 1 && _3_1.en == 1)
-            {
+            if (adjust_en == 1 && _3_1.en == 1) {
 
-                if (pwm_in_duty_xuwei > max_duty)
-                {
+                if (pwm_in_duty_xuwei > max_duty) {
                     pwm_in_duty_xuwei = max_duty;
                 }
                 pwm_in_duty = pwm_in_duty_xuwei;
-            }
-            else
-            {
-                if (pwm_in_duty > max_duty)
-                {
+            } else {
+                if (pwm_in_duty > max_duty) {
                     pwm_in_duty = max_duty;
                 }
             }
         }
-        if (ex_temp_en == 1 && t_ctrl.en == 0)
-        {
-            if (adjust_en == 0 && _3_1.en == 0)
-            {
+        if (ex_temp_en == 1 && t_ctrl.en == 0) {
+            if (adjust_en == 0 && _3_1.en == 0) {
                 pwm_in_duty = max_duty;
             }
-            if (pwm_in_duty > max_duty)
-            {
+            if (pwm_in_duty > max_duty) {
                 pwm_in_duty = max_duty;
             }
-            if (max_duty == 0)
-            {
+            if (max_duty == 0) {
                 pwm_in_duty = 0;
             }
         }
@@ -966,8 +875,7 @@ void t_ctrl_timer_handler(void)
 
     {
         // 当前列表时间非255，如果是255则说明时空结束
-        if (p_list[t_ctrl.level].t != 255)
-        {
+        if (p_list[t_ctrl.level].t != 255) {
             //			t_ctrl.list = 4;
             //        p_list = &t_ctrl_lis_4;
             t_ctrl.t++;
@@ -979,10 +887,10 @@ void t_ctrl_timer_handler(void)
                 t_ctrl.t = 0;
                 max_duty = p_list[t_ctrl.level].b;
                 extemp_tctrl_flag = 1;
-                if (adjust_en == 1) // LIN 改 加入电位器时 将最大值变成电位器的最大值
+                if (adjust_en ==
+                    1) // LIN 改 加入电位器时 将最大值变成电位器的最大值
                 {
-                    switch (max_duty)
-                    {
+                    switch (max_duty) {
                     case 6000:
                         max_duty = ajust_duty;
                         break;
@@ -1002,12 +910,10 @@ void t_ctrl_timer_handler(void)
                         break;
                     }
                 }
-                if (_3_1.en == 1 && ex_temp_en == 1 && t_ctrl.en == 0)
-                {
+                if (_3_1.en == 1 && ex_temp_en == 1 && t_ctrl.en == 0) {
                     //	if(adjust_en==0)
                     {
-                        if (ex_pwm_in_duty < max_duty)
-                        {
+                        if (ex_pwm_in_duty < max_duty) {
                             max_duty = ex_pwm_in_duty;
                         }
                     }
@@ -1019,9 +925,9 @@ void t_ctrl_timer_handler(void)
                     //									}
                     //								}
                 }
-                pwm_in_duty = max_duty; // 修复t_ctrl_lis_4，功率降到30%升不了60%
-                if (adjust_en == 1 && _3_1.en == 1)
-                {
+                pwm_in_duty =
+                    max_duty; // 修复t_ctrl_lis_4，功率降到30%升不了60%
+                if (adjust_en == 1 && _3_1.en == 1) {
                     pwm_in_duty_xuwei = max_duty;
                 }
             }
@@ -1046,8 +952,7 @@ void dly_pwr_on_handler(void)
     {
         user_printf("lvd pwr low \n");
         dly_pwr_on_cnt++;
-        if (dly_pwr_on_cnt >= 5)
-        {
+        if (dly_pwr_on_cnt >= 5) {
             lvd_flag = 0;
             dly_pwr_on_cnt = 0;
 
